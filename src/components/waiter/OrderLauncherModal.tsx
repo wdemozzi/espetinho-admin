@@ -73,7 +73,15 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
   const handleOpenCustomize = (product: Product) => {
     setAddonProduct(product);
-    setTempAddons([]);
+    const isJantinha = product.category_id === 'b5' || product.name.toLowerCase().includes('jantinha');
+    if (isJantinha && product.addons && product.addons.length > 0) {
+      const defaultEspeto = product.addons.find((a) => (a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')) && a.price_cents === 0)
+        || product.addons.find((a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:'))
+        || product.addons[0];
+      setTempAddons(defaultEspeto ? [{ name: defaultEspeto.name, price_cents: defaultEspeto.price_cents }] : []);
+    } else {
+      setTempAddons([]);
+    }
     setTempNotes('');
   };
 
@@ -541,47 +549,156 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
             </div>
 
             {/* Addons list */}
-            {addonProduct.addons && addonProduct.addons.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                    Complementos &amp; Opcionais:
-                  </label>
-                  <span className="text-[11px] text-gray-500">Toque para selecionar</span>
-                </div>
-                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                  {addonProduct.addons.map((add) => {
-                    const isChecked = tempAddons.some((a) => a.name === add.name);
-                    return (
-                      <button
-                        key={add.id}
-                        type="button"
-                        onClick={() => {
-                          setTempAddons((prev) =>
-                            isChecked ? prev.filter((a) => a.name !== add.name) : [...prev, add]
+            {addonProduct.addons && addonProduct.addons.length > 0 && (() => {
+              const isJantinha =
+                addonProduct.category_id === 'b5' ||
+                addonProduct.name.toLowerCase().includes('jantinha');
+
+              const espetoOptions = addonProduct.addons.filter(
+                (a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')
+              );
+              const extraOptions = addonProduct.addons.filter(
+                (a) => !a.name.toLowerCase().includes('espeto') && !a.name.startsWith('Espeto:')
+              );
+
+              const handleSelectEspeto = (add: { name: string; price_cents: number }) => {
+                setTempAddons((prev) => {
+                  const withoutEspetos = prev.filter(
+                    (a) => !a.name.toLowerCase().includes('espeto') && !a.name.startsWith('Espeto:')
+                  );
+                  return [...withoutEspetos, add];
+                });
+              };
+
+              const handleToggleExtra = (add: { name: string; price_cents: number }) => {
+                setTempAddons((prev) => {
+                  const isChecked = prev.some((a) => a.name === add.name);
+                  return isChecked ? prev.filter((a) => a.name !== add.name) : [...prev, add];
+                });
+              };
+
+              if (isJantinha && espetoOptions.length > 0) {
+                return (
+                  <div className="space-y-3">
+                    {/* Seção 1: Espetinho que acompanha a Jantinha (Seleção Única) */}
+                    <div className="p-3 rounded-xl bg-amber-950/25 border border-amber-800/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                          <Flame className="w-3.5 h-3.5" />
+                          <span>Espetinho que Acompanha (1 Opção Inclusa):</span>
+                        </label>
+                        <span className="text-[10px] text-amber-400 font-mono font-bold">Obrigatório</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                        {espetoOptions.map((add) => {
+                          const isSelected = tempAddons.some((a) => a.name === add.name);
+                          return (
+                            <button
+                              key={add.id}
+                              type="button"
+                              onClick={() => handleSelectEspeto(add)}
+                              className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
+                                isSelected
+                                  ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-amber-700 font-black' : 'border-gray-500'}`}>
+                                  {isSelected ? '●' : ''}
+                                </div>
+                                <span className="truncate">{add.name.replace(/^Espeto:\s*/i, '')}</span>
+                              </div>
+                              <span className={`font-mono text-[11px] font-bold flex-shrink-0 ${isSelected ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                              </span>
+                            </button>
                           );
-                        }}
-                        className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition ${
-                          isChecked
-                            ? 'bg-ember-600 text-white border-ember-500 shadow-md shadow-ember-600/30 font-bold'
-                            : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isChecked ? 'bg-white text-ember-700 border-white' : 'border-gray-600 bg-charcoal-900'}`}>
-                            {isChecked ? '✓' : ''}
-                          </div>
-                          <span>{add.name}</span>
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Seção 2: Extras Opcionais */}
+                    {extraOptions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-300 block">
+                          ➕ Acompanhamentos Extras (Opcional):
+                        </label>
+                        <div className="space-y-1 max-h-36 overflow-y-auto pr-0.5">
+                          {extraOptions.map((add) => {
+                            const isChecked = tempAddons.some((a) => a.name === add.name);
+                            return (
+                              <button
+                                key={add.id}
+                                type="button"
+                                onClick={() => handleToggleExtra(add)}
+                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${
+                                  isChecked
+                                    ? 'bg-purple-950/70 border-purple-500 text-white font-semibold'
+                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-purple-500 border-purple-400 text-white' : 'border-gray-600'}`}>
+                                    {isChecked ? '✓' : ''}
+                                  </div>
+                                  <span>{add.name}</span>
+                                </div>
+                                <span className="font-mono text-[11px] font-bold text-amber-400">
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Grátis'}
+                                </span>
+                              </button>
+                            );
+                          })}
                         </div>
-                        <span className={`font-mono text-xs font-bold ${isChecked ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-gray-400'}`}>
-                          {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
-                        </span>
-                      </button>
-                    );
-                  })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                      Complementos &amp; Opcionais:
+                    </label>
+                    <span className="text-[11px] text-gray-500">Toque para selecionar</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {addonProduct.addons.map((add) => {
+                      const isChecked = tempAddons.some((a) => a.name === add.name);
+                      return (
+                        <button
+                          key={add.id}
+                          type="button"
+                          onClick={() => {
+                            setTempAddons((prev) =>
+                              isChecked ? prev.filter((a) => a.name !== add.name) : [...prev, add]
+                            );
+                          }}
+                          className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition ${
+                            isChecked
+                              ? 'bg-ember-600 text-white border-ember-500 shadow-md shadow-ember-600/30 font-bold'
+                              : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isChecked ? 'bg-white text-ember-700 border-white' : 'border-gray-600 bg-charcoal-900'}`}>
+                              {isChecked ? '✓' : ''}
+                            </div>
+                            <span>{add.name}</span>
+                          </div>
+                          <span className={`font-mono text-xs font-bold ${isChecked ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-gray-400'}`}>
+                            {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Notes with Quick Suggestions */}
             <div className="space-y-2 pt-2 border-t border-gray-800">

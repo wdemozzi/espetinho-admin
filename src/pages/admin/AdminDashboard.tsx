@@ -361,6 +361,116 @@ export const AdminDashboard: React.FC = () => {
     setNewAddonPrice('');
   };
 
+  const handleLoadJantinhaEspetosPreset = () => {
+    const defaultEspetos = [
+      { name: 'Espeto: Alcatra Macia', price_cents: 0 },
+      { name: 'Espeto: Frango com Bacon', price_cents: 0 },
+      { name: 'Espeto: Linguiça na Brasa', price_cents: 0 },
+      { name: 'Espeto: Kafta Artesanal Recheada', price_cents: 0 },
+      { name: 'Espeto: Queijo Coalho Dourado', price_cents: 0 },
+      { name: 'Espeto: Coração de Frango', price_cents: 0 },
+      { name: 'Espeto: Medalhão de Frango', price_cents: 0 },
+      { name: 'Espeto: Picanha Nobre (+R$ 3,00)', price_cents: 300 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      const currentAddons = prev.addons || [];
+      const newItems = defaultEspetos
+        .filter((d) => !currentAddons.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .map((d, idx) => ({
+          id: `add-espeto-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: d.name,
+          price_cents: d.price_cents,
+          is_available: true,
+          sort_order: currentAddons.length + idx + 1,
+        }));
+      return {
+        ...prev,
+        addons: [...currentAddons, ...newItems],
+      };
+    });
+    setToastMessage('🍢 Opções de espetinhos para acompanhar a jantinha adicionadas!');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleImportEspetosFromMenu = () => {
+    const espetoProducts = products.filter(
+      (p) =>
+        p.category_id === 'b1' ||
+        p.name.toLowerCase().includes('espet') ||
+        p.sector === 'churrasqueira'
+    );
+
+    if (espetoProducts.length === 0) {
+      setToastMessage('Nenhum espetinho encontrado no cardápio.');
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      const currentAddons = prev.addons || [];
+      const newItems = espetoProducts
+        .filter((ep) => {
+          const cleanName = ep.name.replace(/^Espetinho de\s+/i, '').replace(/^Espetinho\s+/i, '');
+          const addonName = `Espeto: ${cleanName}`;
+          return !currentAddons.some((a) => a.name.toLowerCase().includes(cleanName.toLowerCase()));
+        })
+        .map((ep, idx) => {
+          const cleanName = ep.name.replace(/^Espetinho de\s+/i, '').replace(/^Espetinho\s+/i, '');
+          const isNoble = ep.name.toLowerCase().includes('picanha');
+          const priceCents = isNoble ? 300 : 0;
+          return {
+            id: `add-imp-${ep.id}-${Date.now()}-${idx}`,
+            product_id: prev.id || '',
+            name: `Espeto: ${cleanName}${priceCents > 0 ? ` (+${formatBRL(priceCents)})` : ''}`,
+            price_cents: priceCents,
+            is_available: true,
+            sort_order: currentAddons.length + idx + 1,
+          };
+        });
+
+      return {
+        ...prev,
+        addons: [...currentAddons, ...newItems],
+      };
+    });
+    setToastMessage(`🍢 ${espetoProducts.length} espetos do cardápio importados com sucesso!`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleLoadJantinhaExtrasPreset = () => {
+    const defaultExtras = [
+      { name: 'Mandioca Amanteigada Extra (+R$ 5,00)', price_cents: 500 },
+      { name: 'Vinagrete Fresco Extra (+R$ 4,00)', price_cents: 400 },
+      { name: 'Feijão Tropeiro Extra (+R$ 6,00)', price_cents: 600 },
+      { name: 'Espeto Adicional (+R$ 10,00)', price_cents: 1000 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      const currentAddons = prev.addons || [];
+      const newItems = defaultExtras
+        .filter((d) => !currentAddons.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .map((d, idx) => ({
+          id: `add-extra-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: d.name,
+          price_cents: d.price_cents,
+          is_available: true,
+          sort_order: currentAddons.length + idx + 1,
+        }));
+      return {
+        ...prev,
+        addons: [...currentAddons, ...newItems],
+      };
+    });
+    setToastMessage('➕ Acompanhamentos extras carregados com sucesso!');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const handleRemoveAddonFromProduct = (addonId: string) => {
     setEditingProduct((prev) => prev ? {
       ...prev,
@@ -2150,78 +2260,187 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                 </div>
               </div>
 
-              {/* SEÇÃO DE COMPLEMENTOS & OPCIONAIS COM PREÇO */}
-              <div className="p-3.5 rounded-xl bg-charcoal-850 border border-gray-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Complementos &amp; Opcionais (Preço por Item)</span>
-                    </div>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      Para Açaí, Jantinhas, pontos ou adicionais com preço individual.
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-mono font-bold text-gray-400 bg-charcoal-800 px-2 py-0.5 rounded">
-                    {editingProduct.addons?.length || 0} cadastrados
-                  </span>
-                </div>
+              {/* SEÇÃO DE COMPLEMENTOS & ESCOLHA DO ESPETINHO (JANTINHAS) */}
+              {(() => {
+                const isJantinha =
+                  editingProduct.category_id === 'b5' ||
+                  categories.find((c) => c.id === editingProduct.category_id)?.name.toLowerCase().includes('jantinha') ||
+                  (editingProduct.name || '').toLowerCase().includes('jantinha');
 
-                {/* Lista de complementos existentes */}
-                {editingProduct.addons && editingProduct.addons.length > 0 && (
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    {editingProduct.addons.map((add) => (
-                      <div
-                        key={add.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-charcoal-800 border border-gray-700/80 text-xs"
-                      >
-                        <span className="text-gray-200 font-medium">{add.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-amber-400 text-xs">
-                            {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Grátis'}
+                const espetoAddons = (editingProduct.addons || []).filter(
+                  (a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')
+                );
+                const extraAddons = (editingProduct.addons || []).filter(
+                  (a) => !a.name.toLowerCase().includes('espeto') && !a.name.startsWith('Espeto:')
+                );
+
+                return (
+                  <div className="p-3.5 rounded-xl bg-charcoal-850 border border-gray-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                          {isJantinha ? <Flame className="w-4 h-4 text-amber-400" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          <span>
+                            {isJantinha
+                              ? '🍢 Opção de Escolha do Espetinho & Extras da Jantinha'
+                              : 'Complementos & Opcionais (Preço por Item)'}
                           </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {isJantinha
+                            ? 'O cliente escolhe qual espetinho acompanha a Jantinha (Incluso R$ 0,00 ou Adicional para corte nobre).'
+                            : 'Para Açaí, porções, pontos ou adicionais com preço individual.'}
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-mono font-bold text-gray-400 bg-charcoal-800 px-2 py-0.5 rounded">
+                        {editingProduct.addons?.length || 0} opções
+                      </span>
+                    </div>
+
+                    {/* Banner de Atalhos Rápidos para Jantinhas */}
+                    {isJantinha && (
+                      <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] font-bold text-amber-300">
+                            ⚡ Atalhos para Jantinhas Completas:
+                          </p>
+                          <span className="text-[10px] text-amber-400/80 font-mono">
+                            {espetoAddons.length} espeto(s) configurado(s)
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
                           <button
                             type="button"
-                            title="Remover complemento"
-                            onClick={() => handleRemoveAddonFromProduct(add.id)}
-                            className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-950/40 transition"
+                            onClick={handleLoadJantinhaEspetosPreset}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow transition"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Flame className="w-3.5 h-3.5" />
+                            <span>+ Carregar Espetinhos da Casa (Alcatra, Frango, Kafta, Queijo...)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleImportEspetosFromMenu}
+                            className="px-2.5 py-1 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 border border-amber-700/60 text-amber-200 font-bold text-[11px] flex items-center gap-1.5 transition"
+                          >
+                            <Utensils className="w-3.5 h-3.5" />
+                            <span>Importar Espetos do Cardápio</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleLoadJantinhaExtrasPreset}
+                            className="px-2.5 py-1 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 border border-gray-700 text-gray-300 font-bold text-[11px] flex items-center gap-1.5 transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Extras (Mandioca, Tropeiro, Vinagrete)</span>
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                {/* Formulário rápido para adicionar complemento */}
-                <div className="flex flex-col sm:flex-row gap-2 pt-1 border-t border-gray-800">
-                  <input
-                    type="text"
-                    placeholder="Nome (ex: Leite Ninho, Nutella, Picanha...)"
-                    value={newAddonName}
-                    onChange={(e) => setNewAddonName(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Preço (ex: 3,00 ou 0)"
-                      value={newAddonPrice}
-                      onChange={(e) => setNewAddonPrice(e.target.value)}
-                      className="w-24 px-2.5 py-1.5 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white font-mono font-bold focus:outline-none focus:border-amber-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddAddonToProduct}
-                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1 transition"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Adicionar</span>
-                    </button>
+                    {/* Lista de complementos existentes */}
+                    {editingProduct.addons && editingProduct.addons.length > 0 && (
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {editingProduct.addons.map((add) => {
+                          const isEspeto = add.name.toLowerCase().includes('espeto') || add.name.startsWith('Espeto:');
+                          return (
+                            <div
+                              key={add.id}
+                              className={`flex items-center justify-between p-2 rounded-lg border text-xs ${
+                                isEspeto
+                                  ? 'bg-amber-950/20 border-amber-900/60'
+                                  : 'bg-charcoal-800 border-gray-700/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {isEspeto ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    🍢 ESPETO ACOMPANHANTE
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400">
+                                    ➕ EXTRA OPCIONAL
+                                  </span>
+                                )}
+                                <span className="text-gray-200 font-medium">{add.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono font-bold text-xs ${add.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso (Grátis)'}
+                                </span>
+                                <button
+                                  type="button"
+                                  title="Remover complemento"
+                                  onClick={() => handleRemoveAddonFromProduct(add.id)}
+                                  className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-950/40 transition"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Formulário rápido para adicionar complemento */}
+                    <div className="space-y-2 pt-1 border-t border-gray-800">
+                      {isJantinha && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <span>Adicionar manualmente:</span>
+                          <button
+                            type="button"
+                            onClick={() => setNewAddonName('Espeto: ')}
+                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-amber-300 border border-gray-700 font-medium text-[10px]"
+                          >
+                            + Iniciar com "Espeto:"
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewAddonName('Mandioca Amanteigada Extra');
+                              setNewAddonPrice('5,00');
+                            }}
+                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 border border-gray-700 font-medium text-[10px]"
+                          >
+                            Mandioca Extra
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          placeholder={
+                            isJantinha
+                              ? 'Nome (ex: Espeto: Alcatra Macia ou Vinagrete Extra...)'
+                              : 'Nome (ex: Leite Ninho, Nutella, Picanha...)'
+                          }
+                          value={newAddonName}
+                          onChange={(e) => setNewAddonName(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Preço (ex: 0 ou 3,00)"
+                            value={newAddonPrice}
+                            onChange={(e) => setNewAddonPrice(e.target.value)}
+                            className="w-28 px-2.5 py-1.5 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white font-mono font-bold focus:outline-none focus:border-amber-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddAddonToProduct}
+                            className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1 transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* OPÇÃO DE OBSERVAÇÕES & BAIXA DE ESTOQUE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
