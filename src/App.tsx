@@ -23,11 +23,25 @@ function AdminAppContent() {
   const [cashierInitialTabId, setCashierInitialTabId] = useState<string | undefined>(undefined);
 
   // Parse path / query for default view (e.g. /admin, /cozinha, /caixa, /garcom)
+  // and redirect customer requests (e.g. ?mesa=... or ?view=cardapio) to the public customer app
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname.toLowerCase();
       const params = new URLSearchParams(window.location.search);
+      const mesa = params.get('mesa');
       const view = params.get('view') || params.get('tab');
+
+      // 1. If scanned a table QR code on admin domain, redirect instantly to customer app
+      if (mesa) {
+        window.location.replace(`https://espetinho-comandas.vercel.app/?mesa=${encodeURIComponent(mesa)}`);
+        return;
+      }
+
+      // 2. If opened public digital menu on admin domain, redirect to customer app
+      if (view === 'cardapio' || pathname === '/cardapio' || pathname === '/menu') {
+        window.location.replace('https://espetinho-comandas.vercel.app');
+        return;
+      }
 
       if (pathname.includes('admin') || view === 'admin') {
         setCurrentView('admin');

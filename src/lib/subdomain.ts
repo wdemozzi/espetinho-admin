@@ -168,35 +168,47 @@ export function getSubdomainConfig(): SubdomainConfig {
 /**
  * Returns the public customer website URL for redirection if staff needs to open customer menu.
  */
+/**
+ * Canonical URL for the public customer website and digital menu.
+ */
+export const CANONICAL_PUBLIC_CUSTOMER_URL = 'https://espetinho-comandas.vercel.app';
+
+/**
+ * Returns the public customer website URL for redirection if staff needs to open customer menu.
+ */
 export function getPublicCustomerUrl(): string {
-  if (typeof window === 'undefined') return '/';
+  if (typeof window === 'undefined') return CANONICAL_PUBLIC_CUSTOMER_URL;
 
-  const { protocol, port, searchParams, pathname } = new URL(window.location.href);
-  const hostname = window.location.hostname.toLowerCase();
+  const hostname = (window.location.hostname || '').toLowerCase();
+  const searchParams = new URLSearchParams(window.location.search || '');
 
-  // If query override was used on same host
-  if (searchParams.has('subdomain') || searchParams.has('sub') || searchParams.has('view')) {
-    const cleanParams = new URLSearchParams(searchParams);
-    cleanParams.delete('subdomain');
-    cleanParams.delete('sub');
-    cleanParams.delete('view');
-    cleanParams.delete('admin');
-    cleanParams.delete('garcom');
-    cleanParams.delete('cozinha');
-    cleanParams.delete('caixa');
-    cleanParams.delete('operacao');
-    const qs = cleanParams.toString();
-    return `/${qs ? `?${qs}` : ''}`;
+  // If query override was used on same host in dev or test
+  if (searchParams.has('subdomain') || searchParams.has('sub')) {
+    return '/';
   }
 
-  // If on subdomain e.g. admin.ctconveniencia.com.br -> ctconveniencia.com.br
+  // If on a custom domain like admin.ctconveniencia.com.br, root is ctconveniencia.com.br/
   const parts = hostname.split('.');
   if (!hostname.endsWith('.vercel.app') && parts.length >= 3) {
     const rootDomain = parts.slice(1).join('.');
-    return `${protocol}//${rootDomain}${port ? `:${port}` : ''}/`;
+    return `${window.location.protocol}//${rootDomain}/`;
   }
 
-  return '/';
+  // In local development, if on localhost, point to localhost:5173
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:5173';
+  }
+
+  // Canonical Vercel deployment for customer app
+  return CANONICAL_PUBLIC_CUSTOMER_URL;
+}
+
+/**
+ * Returns the exact public QR Code URL that a customer's phone should open when scanning a table QR code.
+ */
+export function getTableQrCodeUrl(qrToken: string): string {
+  const baseUrl = getPublicCustomerUrl();
+  return `${baseUrl}/?mesa=${encodeURIComponent(qrToken)}`;
 }
 
 /**

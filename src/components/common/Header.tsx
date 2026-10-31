@@ -21,6 +21,7 @@ import { soundService } from '../../lib/sound';
 import { db } from '../../lib/databaseStore';
 import { OperatorSwitchModal } from './OperatorSwitchModal';
 import { ExpeditionModal } from './ExpeditionModal';
+import { getPublicCustomerUrl } from '../../lib/subdomain';
 
 interface HeaderProps {
   currentView: string;
@@ -167,10 +168,11 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
             </button>
 
             {/* Public Catalog Link (Opens in new tab exactly as customer sees it) */}
+            {/* Public Catalog Link (Opens in new tab exactly as customer sees it) */}
             <div className="hidden lg:flex items-center">
               <button
                 type="button"
-                onClick={() => window.open('/?view=cardapio', '_blank')}
+                onClick={() => window.open(getPublicCustomerUrl(), '_blank')}
                 title="Abrir Cardápio Digital em Nova Aba (Visualização do Cliente)"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-l-xl bg-purple-950/50 hover:bg-purple-900/60 text-purple-300 border border-purple-800/60 text-xs font-semibold whitespace-nowrap transition"
               >
@@ -181,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
               <button
                 type="button"
                 onClick={() => {
-                  const url = `${window.location.origin}/?view=cardapio`;
+                  const url = getPublicCustomerUrl();
                   navigator.clipboard.writeText(url);
                   setCopiedBioToast(true);
                   setTimeout(() => setCopiedBioToast(false), 2500);
@@ -262,7 +264,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
           );
         })}
         <button
-          onClick={() => window.open('/?view=cardapio', '_blank')}
+          onClick={() => window.open(getPublicCustomerUrl(), '_blank')}
           title="Ver Cardápio Público em Nova Aba"
           className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md text-[11px] font-medium text-gray-400 hover:text-purple-300 transition"
         >
