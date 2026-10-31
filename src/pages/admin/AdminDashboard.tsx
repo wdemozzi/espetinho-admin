@@ -471,6 +471,73 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleLoadMilkShakeSaboresPreset = () => {
+    const defaultSabores = [
+      { name: 'Sabor: Morango', price_cents: 0 },
+      { name: 'Sabor: Maracujá', price_cents: 0 },
+      { name: 'Sabor: Chocolate', price_cents: 0 },
+      { name: 'Sabor: Mocka', price_cents: 0 },
+      { name: 'Sabor: Delícia de Abacaxi', price_cents: 0 },
+      { name: 'Sabor: Torta de Limão', price_cents: 0 },
+      { name: 'Sabor: Napolitano', price_cents: 0 },
+      { name: 'Sabor: Banoffee', price_cents: 0 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      const currentAddons = prev.addons || [];
+      const newItems = defaultSabores
+        .filter((d) => !currentAddons.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .map((d, idx) => ({
+          id: `add-sabor-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: d.name,
+          price_cents: d.price_cents,
+          is_available: true,
+          sort_order: currentAddons.length + idx + 1,
+        }));
+      return {
+        ...prev,
+        addons: [...currentAddons, ...newItems],
+      };
+    });
+    setToastMessage('🥤 8 Sabores de Milk-Shake adicionados!');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleLoadMilkShakeOpcionaisPreset = () => {
+    const defaultOpcionais = [
+      { name: 'Chantilly Artesanal (+R$ 3,00)', price_cents: 300 },
+      { name: 'Nutella Pura (+R$ 4,00)', price_cents: 400 },
+      { name: 'Ovomaltine Crocante (+R$ 3,50)', price_cents: 350 },
+      { name: 'Leite Ninho Extra (+R$ 3,00)', price_cents: 300 },
+      { name: 'Calda de Chocolate Extra (+R$ 2,50)', price_cents: 250 },
+      { name: 'Calda de Morango Extra (+R$ 2,50)', price_cents: 250 },
+      { name: 'Gotas de Chocolate Nobre (+R$ 3,00)', price_cents: 300 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      const currentAddons = prev.addons || [];
+      const newItems = defaultOpcionais
+        .filter((d) => !currentAddons.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .map((d, idx) => ({
+          id: `add-opc-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: d.name,
+          price_cents: d.price_cents,
+          is_available: true,
+          sort_order: currentAddons.length + idx + 1,
+        }));
+      return {
+        ...prev,
+        addons: [...currentAddons, ...newItems],
+      };
+    });
+    setToastMessage('➕ Opcionais de Milk-Shake adicionados com sucesso!');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const handleRemoveAddonFromProduct = (addonId: string) => {
     setEditingProduct((prev) => prev ? {
       ...prev,
@@ -2260,18 +2327,27 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                 </div>
               </div>
 
-              {/* SEÇÃO DE COMPLEMENTOS & ESCOLHA DO ESPETINHO (JANTINHAS) */}
+              {/* SEÇÃO DE COMPLEMENTOS, ESCOLHA DO ESPETINHO (JANTINHAS) OU SABORES (MILK-SHAKE) */}
               {(() => {
+                const selectedCat = categories.find((c) => c.id === editingProduct.category_id);
                 const isJantinha =
                   editingProduct.category_id === 'b5' ||
-                  categories.find((c) => c.id === editingProduct.category_id)?.name.toLowerCase().includes('jantinha') ||
+                  selectedCat?.name.toLowerCase().includes('jantinha') ||
                   (editingProduct.name || '').toLowerCase().includes('jantinha');
+
+                const isMilkShake =
+                  editingProduct.category_id === 'b7' ||
+                  (selectedCat?.name || '').toLowerCase().includes('milk') ||
+                  (selectedCat?.slug || '').includes('milk') ||
+                  (editingProduct.name || '').toLowerCase().includes('milk-shake') ||
+                  (editingProduct.name || '').toLowerCase().includes('milkshake');
 
                 const espetoAddons = (editingProduct.addons || []).filter(
                   (a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')
                 );
-                const extraAddons = (editingProduct.addons || []).filter(
-                  (a) => !a.name.toLowerCase().includes('espeto') && !a.name.startsWith('Espeto:')
+
+                const saborAddons = (editingProduct.addons || []).filter(
+                  (a) => a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:')
                 );
 
                 return (
@@ -2279,16 +2355,26 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                          {isJantinha ? <Flame className="w-4 h-4 text-amber-400" /> : <Sparkles className="w-3.5 h-3.5" />}
-                          <span>
+                          {isJantinha ? (
+                            <Flame className="w-4 h-4 text-amber-400" />
+                          ) : isMilkShake ? (
+                            <Sparkles className="w-4 h-4 text-pink-400" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          <span className={isMilkShake ? 'text-pink-300' : ''}>
                             {isJantinha
                               ? '🍢 Opção de Escolha do Espetinho & Extras da Jantinha'
+                              : isMilkShake
+                              ? '🥤 Opção de Escolha de Sabores & Opcionais do Milk-Shake'
                               : 'Complementos & Opcionais (Preço por Item)'}
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-400 mt-0.5">
                           {isJantinha
                             ? 'O cliente escolhe qual espetinho acompanha a Jantinha (Incluso R$ 0,00 ou Adicional para corte nobre).'
+                            : isMilkShake
+                            ? 'O cliente escolhe qual sabor deseja (Morango, Maracujá, Chocolate, Mocka...) e pode adicionar opcionais com preço individual.'
                             : 'Para Açaí, porções, pontos ou adicionais com preço individual.'}
                         </p>
                       </div>
@@ -2337,17 +2423,53 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                       </div>
                     )}
 
+                    {/* Banner de Atalhos Rápidos para Milk-Shake */}
+                    {isMilkShake && (
+                      <div className="p-2.5 rounded-xl bg-pink-950/30 border border-pink-800/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] font-bold text-pink-300 flex items-center gap-1.5">
+                            <span>🥤</span>
+                            <span>Atalhos para Milk-Shakes da Casa:</span>
+                          </p>
+                          <span className="text-[10px] text-pink-400 font-mono">
+                            {saborAddons.length} sabor(es) configurado(s)
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={handleLoadMilkShakeSaboresPreset}
+                            className="px-2.5 py-1 rounded-lg bg-pink-600/90 hover:bg-pink-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow transition"
+                          >
+                            <span>🥤</span>
+                            <span>+ Carregar 8 Sabores da Casa (Morango, Maracujá, Chocolate, Mocka, Abacaxi, Limão, Napolitano, Banoffee)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleLoadMilkShakeOpcionaisPreset}
+                            className="px-2.5 py-1 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 border border-pink-800/60 text-pink-200 font-bold text-[11px] flex items-center gap-1.5 transition"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Carregar Opcionais (Chantilly, Nutella, Ovomaltine, Ninho...)</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Lista de complementos existentes */}
                     {editingProduct.addons && editingProduct.addons.length > 0 && (
                       <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                         {editingProduct.addons.map((add) => {
                           const isEspeto = add.name.toLowerCase().includes('espeto') || add.name.startsWith('Espeto:');
+                          const isSabor = add.name.toLowerCase().includes('sabor') || add.name.startsWith('Sabor:');
                           return (
                             <div
                               key={add.id}
                               className={`flex items-center justify-between p-2 rounded-lg border text-xs ${
                                 isEspeto
                                   ? 'bg-amber-950/20 border-amber-900/60'
+                                  : isSabor
+                                  ? 'bg-pink-950/20 border-pink-900/60'
                                   : 'bg-charcoal-800 border-gray-700/80'
                               }`}
                             >
@@ -2355,6 +2477,10 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                                 {isEspeto ? (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                     🍢 ESPETO ACOMPANHANTE
+                                  </span>
+                                ) : isSabor ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                                    🥤 SABOR DO MILK-SHAKE
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400">
@@ -2407,12 +2533,50 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                         </div>
                       )}
 
+                      {isMilkShake && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <span>Adicionar rapidamente:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewAddonName('Sabor: ');
+                              setNewAddonPrice('0');
+                            }}
+                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-pink-300 border border-gray-700 font-medium text-[10px]"
+                          >
+                            + Iniciar com "Sabor:"
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewAddonName('Chantilly Artesanal (+R$ 3,00)');
+                              setNewAddonPrice('3,00');
+                            }}
+                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 border border-gray-700 font-medium text-[10px]"
+                          >
+                            + Chantilly (+R$ 3,00)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewAddonName('Nutella Pura (+R$ 4,00)');
+                              setNewAddonPrice('4,00');
+                            }}
+                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 border border-gray-700 font-medium text-[10px]"
+                          >
+                            + Nutella (+R$ 4,00)
+                          </button>
+                        </div>
+                      )}
+
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
                           placeholder={
                             isJantinha
                               ? 'Nome (ex: Espeto: Alcatra Macia ou Vinagrete Extra...)'
+                              : isMilkShake
+                              ? 'Nome (ex: Sabor: Mocka ou Chantilly Extra...)'
                               : 'Nome (ex: Leite Ninho, Nutella, Picanha...)'
                           }
                           value={newAddonName}

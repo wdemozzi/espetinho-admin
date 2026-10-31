@@ -74,11 +74,18 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
   const handleOpenCustomize = (product: Product) => {
     setAddonProduct(product);
     const isJantinha = product.category_id === 'b5' || product.name.toLowerCase().includes('jantinha');
+    const isMilkShake = product.category_id === 'b7' || product.name.toLowerCase().includes('milk');
+
     if (isJantinha && product.addons && product.addons.length > 0) {
       const defaultEspeto = product.addons.find((a) => (a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')) && a.price_cents === 0)
         || product.addons.find((a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:'))
         || product.addons[0];
       setTempAddons(defaultEspeto ? [{ name: defaultEspeto.name, price_cents: defaultEspeto.price_cents }] : []);
+    } else if (isMilkShake && product.addons && product.addons.length > 0) {
+      const defaultSabor = product.addons.find((a) => (a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:')) && a.price_cents === 0)
+        || product.addons.find((a) => a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:'))
+        || product.addons[0];
+      setTempAddons(defaultSabor ? [{ name: defaultSabor.name, price_cents: defaultSabor.price_cents }] : []);
     } else {
       setTempAddons([]);
     }
@@ -554,11 +561,22 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                 addonProduct.category_id === 'b5' ||
                 addonProduct.name.toLowerCase().includes('jantinha');
 
+              const isMilkShake =
+                addonProduct.category_id === 'b7' ||
+                addonProduct.name.toLowerCase().includes('milk');
+
               const espetoOptions = addonProduct.addons.filter(
                 (a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')
               );
               const extraOptions = addonProduct.addons.filter(
                 (a) => !a.name.toLowerCase().includes('espeto') && !a.name.startsWith('Espeto:')
+              );
+
+              const saborOptions = addonProduct.addons.filter(
+                (a) => a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:')
+              );
+              const opcionalMilkShake = addonProduct.addons.filter(
+                (a) => !a.name.toLowerCase().includes('sabor') && !a.name.startsWith('Sabor:')
               );
 
               const handleSelectEspeto = (add: { name: string; price_cents: number }) => {
@@ -567,6 +585,15 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                     (a) => !a.name.toLowerCase().includes('espeto') && !a.name.startsWith('Espeto:')
                   );
                   return [...withoutEspetos, add];
+                });
+              };
+
+              const handleSelectSabor = (add: { name: string; price_cents: number }) => {
+                setTempAddons((prev) => {
+                  const withoutSabores = prev.filter(
+                    (a) => !a.name.toLowerCase().includes('sabor') && !a.name.startsWith('Sabor:')
+                  );
+                  return [...withoutSabores, add];
                 });
               };
 
@@ -640,6 +667,86 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                               >
                                 <div className="flex items-center gap-2">
                                   <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-purple-500 border-purple-400 text-white' : 'border-gray-600'}`}>
+                                    {isChecked ? '✓' : ''}
+                                  </div>
+                                  <span>{add.name}</span>
+                                </div>
+                                <span className="font-mono text-[11px] font-bold text-amber-400">
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Grátis'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (isMilkShake && saborOptions.length > 0) {
+                return (
+                  <div className="space-y-3">
+                    {/* Seção 1: Sabores do Milk-Shake (Seleção Única Obrigatória) */}
+                    <div className="p-3 rounded-xl bg-pink-950/25 border border-pink-800/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-pink-300 flex items-center gap-1.5">
+                          <span>🥤</span>
+                          <span>Escolha o Sabor (1 Opção Inclusa):</span>
+                        </label>
+                        <span className="text-[10px] text-pink-400 font-mono font-bold">Obrigatório</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                        {saborOptions.map((add) => {
+                          const isSelected = tempAddons.some((a) => a.name === add.name);
+                          return (
+                            <button
+                              key={add.id}
+                              type="button"
+                              onClick={() => handleSelectSabor(add)}
+                              className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
+                                isSelected
+                                  ? 'bg-pink-600 text-white border-pink-500 shadow font-bold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-pink-700 font-black' : 'border-gray-500'}`}>
+                                  {isSelected ? '●' : ''}
+                                </div>
+                                <span className="truncate">{add.name.replace(/^Sabor:\s*/i, '')}</span>
+                              </div>
+                              <span className={`font-mono text-[11px] font-bold flex-shrink-0 ${isSelected ? 'text-white' : 'text-emerald-400'}`}>
+                                {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Seção 2: Opcionais & Adicionais do Milk-Shake */}
+                    {opcionalMilkShake.length > 0 && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-300 block">
+                          ➕ Opcionais &amp; Adicionais (Preço por Item):
+                        </label>
+                        <div className="space-y-1 max-h-36 overflow-y-auto pr-0.5">
+                          {opcionalMilkShake.map((add) => {
+                            const isChecked = tempAddons.some((a) => a.name === add.name);
+                            return (
+                              <button
+                                key={add.id}
+                                type="button"
+                                onClick={() => handleToggleExtra(add)}
+                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${
+                                  isChecked
+                                    ? 'bg-pink-950/70 border-pink-500 text-white font-semibold'
+                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-pink-500 border-pink-400 text-white' : 'border-gray-600'}`}>
                                     {isChecked ? '✓' : ''}
                                   </div>
                                   <span>{add.name}</span>
