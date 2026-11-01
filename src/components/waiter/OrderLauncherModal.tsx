@@ -75,6 +75,7 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
     setAddonProduct(product);
     const isJantinha = product.category_id === 'b5' || product.name.toLowerCase().includes('jantinha');
     const isMilkShake = product.category_id === 'b7' || product.name.toLowerCase().includes('milk');
+    const isDrink = product.category_id === 'b8' || product.name.toLowerCase().includes('copão') || product.name.toLowerCase().includes('copao') || product.name.toLowerCase().includes('drink') || product.name.toLowerCase().includes('alcoólico');
 
     if (isJantinha && product.addons && product.addons.length > 0) {
       const defaultEspeto = product.addons.find((a) => (a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')) && a.price_cents === 0)
@@ -86,6 +87,15 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
         || product.addons.find((a) => a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:'))
         || product.addons[0];
       setTempAddons(defaultSabor ? [{ name: defaultSabor.name, price_cents: defaultSabor.price_cents }] : []);
+    } else if (isDrink && product.addons && product.addons.length > 0) {
+      const defaultDestilado = product.addons.find((a) => (a.name.toLowerCase().includes('destilado') || a.name.startsWith('Destilado:') || a.name.toLowerCase().includes('bebida') || a.name.startsWith('Bebida:')) && a.price_cents === 0)
+        || product.addons.find((a) => a.name.toLowerCase().includes('destilado') || a.name.startsWith('Destilado:') || a.name.toLowerCase().includes('bebida') || a.name.startsWith('Bebida:'));
+      const defaultSabor = product.addons.find((a) => (a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:')) && a.price_cents === 0)
+        || product.addons.find((a) => a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:'));
+      const initial: { name: string; price_cents: number }[] = [];
+      if (defaultDestilado) initial.push({ name: defaultDestilado.name, price_cents: defaultDestilado.price_cents });
+      if (defaultSabor) initial.push({ name: defaultSabor.name, price_cents: defaultSabor.price_cents });
+      setTempAddons(initial);
     } else {
       setTempAddons([]);
     }
@@ -565,6 +575,13 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                 addonProduct.category_id === 'b7' ||
                 addonProduct.name.toLowerCase().includes('milk');
 
+              const isDrink =
+                addonProduct.category_id === 'b8' ||
+                addonProduct.name.toLowerCase().includes('copão') ||
+                addonProduct.name.toLowerCase().includes('copao') ||
+                addonProduct.name.toLowerCase().includes('drink') ||
+                addonProduct.name.toLowerCase().includes('alcoólico');
+
               const espetoOptions = addonProduct.addons.filter(
                 (a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')
               );
@@ -577,6 +594,26 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
               );
               const opcionalMilkShake = addonProduct.addons.filter(
                 (a) => !a.name.toLowerCase().includes('sabor') && !a.name.startsWith('Sabor:')
+              );
+
+              const destiladoOptions = addonProduct.addons.filter(
+                (a) =>
+                  a.name.toLowerCase().includes('destilado') ||
+                  a.name.startsWith('Destilado:') ||
+                  a.name.toLowerCase().includes('bebida') ||
+                  a.name.startsWith('Bebida:')
+              );
+              const drinkSaborOptions = addonProduct.addons.filter(
+                (a) => a.name.toLowerCase().includes('sabor') || a.name.startsWith('Sabor:')
+              );
+              const opcionalDrinks = addonProduct.addons.filter(
+                (a) =>
+                  !a.name.toLowerCase().includes('destilado') &&
+                  !a.name.startsWith('Destilado:') &&
+                  !a.name.toLowerCase().includes('bebida') &&
+                  !a.name.startsWith('Bebida:') &&
+                  !a.name.toLowerCase().includes('sabor') &&
+                  !a.name.startsWith('Sabor:')
               );
 
               const handleSelectEspeto = (add: { name: string; price_cents: number }) => {
@@ -594,6 +631,19 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                     (a) => !a.name.toLowerCase().includes('sabor') && !a.name.startsWith('Sabor:')
                   );
                   return [...withoutSabores, add];
+                });
+              };
+
+              const handleSelectDestilado = (add: { name: string; price_cents: number }) => {
+                setTempAddons((prev) => {
+                  const withoutDestilado = prev.filter(
+                    (a) =>
+                      !a.name.toLowerCase().includes('destilado') &&
+                      !a.name.startsWith('Destilado:') &&
+                      !a.name.toLowerCase().includes('bebida') &&
+                      !a.name.startsWith('Bebida:')
+                  );
+                  return [...withoutDestilado, add];
                 });
               };
 
@@ -747,6 +797,129 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                               >
                                 <div className="flex items-center gap-2">
                                   <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-pink-500 border-pink-400 text-white' : 'border-gray-600'}`}>
+                                    {isChecked ? '✓' : ''}
+                                  </div>
+                                  <span>{add.name}</span>
+                                </div>
+                                <span className="font-mono text-[11px] font-bold text-amber-400">
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Grátis'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (isDrink && (destiladoOptions.length > 0 || drinkSaborOptions.length > 0 || opcionalDrinks.length > 0)) {
+                return (
+                  <div className="space-y-3">
+                    {/* Seção 1: Destilado do Copão ou Drink (Seleção Única Obrigatória) */}
+                    {destiladoOptions.length > 0 && (
+                      <div className="p-3 rounded-xl bg-amber-950/25 border border-amber-800/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                            <span>🥃</span>
+                            <span>Destilado / Bebida Base:</span>
+                          </label>
+                          <span className="text-[10px] text-amber-400 font-mono font-bold">1 Obrigatório</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {destiladoOptions.map((add) => {
+                            const isSelected = tempAddons.some((a) => a.name === add.name);
+                            return (
+                              <button
+                                key={add.id}
+                                type="button"
+                                onClick={() => handleSelectDestilado(add)}
+                                className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
+                                  isSelected
+                                    ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
+                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-amber-700 font-black' : 'border-gray-500'}`}>
+                                    {isSelected ? '●' : ''}
+                                  </div>
+                                  <span className="truncate">{add.name.replace(/^(Destilado|Bebida):\s*/i, '')}</span>
+                                </div>
+                                <span className={`font-mono text-[11px] font-bold flex-shrink-0 ${isSelected ? 'text-white' : 'text-emerald-400'}`}>
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Seção 2: Sabores (caso Milkshake Alcoólico) */}
+                    {drinkSaborOptions.length > 0 && (
+                      <div className="p-3 rounded-xl bg-purple-950/25 border border-purple-800/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                            <span>🥤</span>
+                            <span>Sabor do Milkshake:</span>
+                          </label>
+                          <span className="text-[10px] text-purple-400 font-mono font-bold">1 Incluso</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-0.5">
+                          {drinkSaborOptions.map((add) => {
+                            const isSelected = tempAddons.some((a) => a.name === add.name);
+                            return (
+                              <button
+                                key={add.id}
+                                type="button"
+                                onClick={() => handleSelectSabor(add)}
+                                className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
+                                  isSelected
+                                    ? 'bg-purple-600 text-white border-purple-500 shadow font-bold'
+                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-purple-700 font-black' : 'border-gray-500'}`}>
+                                    {isSelected ? '●' : ''}
+                                  </div>
+                                  <span className="truncate">{add.name.replace(/^Sabor:\s*/i, '')}</span>
+                                </div>
+                                <span className={`font-mono text-[11px] font-bold flex-shrink-0 ${isSelected ? 'text-white' : 'text-emerald-400'}`}>
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Seção 3: Opcionais & Roseta do Drink */}
+                    {opcionalDrinks.length > 0 && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                          <span>🍋</span>
+                          <span>Adicionais (Roseta, Gelo de Coco, etc.):</span>
+                        </label>
+                        <div className="space-y-1 max-h-36 overflow-y-auto pr-0.5">
+                          {opcionalDrinks.map((add) => {
+                            const isChecked = tempAddons.some((a) => a.name === add.name);
+                            return (
+                              <button
+                                key={add.id}
+                                type="button"
+                                onClick={() => handleToggleExtra(add)}
+                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${
+                                  isChecked
+                                    ? 'bg-amber-950/70 border-amber-500 text-white font-semibold'
+                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-amber-500 border-amber-400 text-white' : 'border-gray-600'}`}>
                                     {isChecked ? '✓' : ''}
                                   </div>
                                   <span>{add.name}</span>

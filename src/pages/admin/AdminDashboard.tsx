@@ -538,6 +538,36 @@ export const AdminDashboard: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  const handleLoadDrinksPreset = () => {
+    const defaultDrinksOptions = [
+      { name: 'Destilado: Vodka Nacional', price_cents: 0 },
+      { name: 'Destilado: Whisky Cavalo Branco (+R$ 10,00)', price_cents: 1000 },
+      { name: 'Borda com Roseta de Limão e Sal (+R$ 3,00)', price_cents: 300 },
+      { name: 'Gelo de Coco Especial (+R$ 3,00)', price_cents: 300 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      const currentAddons = prev.addons || [];
+      const newItems = defaultDrinksOptions
+        .filter((d) => !currentAddons.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .map((d, idx) => ({
+          id: `add-drk-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: d.name,
+          price_cents: d.price_cents,
+          is_available: true,
+          sort_order: currentAddons.length + idx + 1,
+        }));
+      return {
+        ...prev,
+        addons: [...currentAddons, ...newItems],
+      };
+    });
+    setToastMessage('🥃 Opções de Drinks e Copão adicionadas com sucesso!');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const handleRemoveAddonFromProduct = (addonId: string) => {
     setEditingProduct((prev) => prev ? {
       ...prev,
@@ -2342,6 +2372,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                   (editingProduct.name || '').toLowerCase().includes('milk-shake') ||
                   (editingProduct.name || '').toLowerCase().includes('milkshake');
 
+                const isDrink =
+                  editingProduct.category_id === 'b8' ||
+                  (selectedCat?.name || '').toLowerCase().includes('drink') ||
+                  (selectedCat?.slug || '').includes('drink') ||
+                  (editingProduct.name || '').toLowerCase().includes('copão') ||
+                  (editingProduct.name || '').toLowerCase().includes('copao') ||
+                  (editingProduct.name || '').toLowerCase().includes('drink') ||
+                  (editingProduct.name || '').toLowerCase().includes('alcoólico');
+
                 const espetoAddons = (editingProduct.addons || []).filter(
                   (a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')
                 );
@@ -2456,12 +2495,38 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                       </div>
                     )}
 
+                    {/* Banner de Atalhos Rápidos para Drinks & Copões */}
+                    {isDrink && (
+                      <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                            <span>🥃</span>
+                            <span>Atalhos para Drinks &amp; Copões Costa Teixeira:</span>
+                          </p>
+                          <span className="text-[10px] text-amber-400 font-mono">
+                            Preset Oficial
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            onClick={handleLoadDrinksPreset}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow transition"
+                          >
+                            <span>🥃</span>
+                            <span>+ Carregar Destilados (Vodka Incluso, Whisky Cavalo Branco) &amp; Roseta no Copo</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Lista de complementos existentes */}
                     {editingProduct.addons && editingProduct.addons.length > 0 && (
                       <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                         {editingProduct.addons.map((add) => {
                           const isEspeto = add.name.toLowerCase().includes('espeto') || add.name.startsWith('Espeto:');
                           const isSabor = add.name.toLowerCase().includes('sabor') || add.name.startsWith('Sabor:');
+                          const isDestilado = add.name.toLowerCase().includes('destilado') || add.name.startsWith('Destilado:') || add.name.toLowerCase().includes('bebida') || add.name.startsWith('Bebida:');
                           return (
                             <div
                               key={add.id}
@@ -2470,6 +2535,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                                   ? 'bg-amber-950/20 border-amber-900/60'
                                   : isSabor
                                   ? 'bg-pink-950/20 border-pink-900/60'
+                                  : isDestilado
+                                  ? 'bg-amber-950/30 border-amber-600/50'
                                   : 'bg-charcoal-800 border-gray-700/80'
                               }`}
                             >
@@ -2481,6 +2548,10 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                                 ) : isSabor ? (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">
                                     🥤 SABOR DO MILK-SHAKE
+                                  </span>
+                                ) : isDestilado ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                    🥃 DESTILADO / BASE
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700/50 text-gray-400">
