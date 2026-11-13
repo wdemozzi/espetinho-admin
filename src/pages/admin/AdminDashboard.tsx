@@ -115,7 +115,7 @@ export const AdminDashboard: React.FC = () => {
   const [isUserModalOpen, setIsUserModalOpen] = useState<boolean>(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newUserName, setNewUserName] = useState<string>('');
-  const [newUserRole, setNewUserRole] = useState<'garcom' | 'cozinha' | 'caixa' | 'admin'>('garcom');
+  const [newUserRole, setNewUserRole] = useState<'garcom' | 'churrasqueira' | 'cozinha' | 'bar' | 'caixa' | 'admin'>('garcom');
   const [newUserPhone, setNewUserPhone] = useState<string>('');
   const [newUserPin, setNewUserPin] = useState<string>('1234');
 
@@ -324,8 +324,25 @@ export const AdminDashboard: React.FC = () => {
     db.saveProduct({
       id: productId,
       category_id: newCategoryId,
+      sector: cat.default_sector || prod.sector,
     });
-    setToastMessage(`Produto "${prod.name}" movido para "${cat.name}"!`);
+    setToastMessage(`Produto "${prod.name}" movido para "${cat.name}" (Setor: ${cat.default_sector})!`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleChangeProductSector = (productId: string, newSector: ProductionSector) => {
+    const prod = products.find((p) => p.id === productId);
+    if (!prod) return;
+    db.saveProduct({
+      id: productId,
+      sector: newSector,
+    });
+    const sectorLabels: Record<ProductionSector, string> = {
+      churrasqueira: '🔥 Churrasqueira',
+      cozinha: '🍳 Cozinha',
+      bar: '🍺 Bar / Bebidas',
+    };
+    setToastMessage(`Setor de "${prod.name}" alterado para ${sectorLabels[newSector]}!`);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -1807,7 +1824,17 @@ END $$;`;
                             </select>
                           </td>
                           <td className="p-3.5">
-                            <SectorBadge sector={p.sector} />
+                            {/* Seletor rápido de Setor de Produção */}
+                            <select
+                              value={p.sector || 'cozinha'}
+                              onChange={(e) => handleChangeProductSector(p.id, e.target.value as ProductionSector)}
+                              className="px-2.5 py-1.5 rounded-lg bg-charcoal-800 border border-gray-700 text-xs font-semibold focus:outline-none focus:border-orange-500 cursor-pointer text-gray-200"
+                              title="Clique para alterar para qual setor o item é despachado"
+                            >
+                              <option value="churrasqueira">🔥 Churrasqueira</option>
+                              <option value="cozinha">🍳 Cozinha</option>
+                              <option value="bar">🍺 Bar / Bebidas</option>
+                            </select>
                           </td>
                           <td className="p-3.5 font-mono font-bold text-ember-400 text-sm">
                             {formatBRL(p.price_cents)}
@@ -2278,7 +2305,15 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                   <label className="text-xs font-semibold text-gray-300 block mb-1">Categoria do Cardápio:</label>
                   <select
                     value={editingProduct.category_id || categories[0]?.id || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category_id: e.target.value })}
+                    onChange={(e) => {
+                      const newCatId = e.target.value;
+                      const matchedCat = categories.find((c) => c.id === newCatId);
+                      setEditingProduct({
+                        ...editingProduct,
+                        category_id: newCatId,
+                        sector: matchedCat?.default_sector || editingProduct.sector || 'cozinha',
+                      });
+                    }}
                     className="w-full px-3 py-2 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-ember-500"
                   >
                     {categories.map((c) => (
@@ -2290,7 +2325,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-gray-300 block mb-1">Setor de Produção:</label>
+                  <label className="text-xs font-semibold text-gray-300 block mb-1">
+                    Setor de Produção / Destino:
+                  </label>
                   <select
                     value={editingProduct.sector || 'cozinha'}
                     onChange={(e) =>
@@ -2298,9 +2335,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                     }
                     className="w-full px-3 py-2 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-ember-500"
                   >
-                    <option value="churrasqueira">Churrasqueira</option>
-                    <option value="cozinha">Cozinha</option>
-                    <option value="bar">Bar</option>
+                    <option value="churrasqueira">🔥 Churrasqueira (Espetinhos)</option>
+                    <option value="cozinha">🍳 Cozinha (Pratos & Porções)</option>
+                    <option value="bar">🍺 Bar (Bebidas & Drinks)</option>
                   </select>
                 </div>
               </div>
@@ -2943,11 +2980,13 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                   <label className="text-xs font-semibold text-gray-300 block mb-1">Função / Cargo:</label>
                   <select
                     value={newUserRole}
-                    onChange={(e) => setNewUserRole(e.target.value as 'garcom' | 'cozinha' | 'caixa' | 'admin')}
+                    onChange={(e) => setNewUserRole(e.target.value as 'garcom' | 'churrasqueira' | 'cozinha' | 'bar' | 'caixa' | 'admin')}
                     className="w-full px-2 py-2 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-purple-500"
                   >
                     <option value="garcom">Garçom</option>
+                    <option value="churrasqueira">Churrasqueira</option>
                     <option value="cozinha">Cozinha</option>
+                    <option value="bar">Bar (Bebidas)</option>
                     <option value="caixa">Caixa</option>
                     <option value="admin">Administrador</option>
                   </select>

@@ -45,8 +45,12 @@ function AdminAppContent() {
 
       if (pathname.includes('admin') || view === 'admin') {
         setCurrentView('admin');
+      } else if (pathname.includes('churrasqueira') || view === 'churrasqueira') {
+        setCurrentView('churrasqueira');
       } else if (pathname.includes('cozinha') || view === 'cozinha') {
         setCurrentView('cozinha');
+      } else if (pathname.includes('bar') || pathname.includes('bebida') || view === 'bar' || view === 'bebidas') {
+        setCurrentView('bar');
       } else if (pathname.includes('caixa') || view === 'caixa') {
         setCurrentView('caixa');
       } else {
@@ -73,6 +77,13 @@ function AdminAppContent() {
       <StaffLoginTerminal
         onSuccess={() => {
           setIsStaffAuthenticated(true);
+          // Set initial view according to logged-in profile role if not already chosen by URL
+          const userRole = currentUser?.role;
+          if (userRole === 'churrasqueira') setCurrentView('churrasqueira');
+          else if (userRole === 'cozinha') setCurrentView('cozinha');
+          else if (userRole === 'bar') setCurrentView('bar');
+          else if (userRole === 'caixa') setCurrentView('caixa');
+          else if (userRole === 'admin') setCurrentView('admin');
         }}
         onCancel={() => {
           // In staff portal, onCancel resets PIN input and keeps screen locked
@@ -94,7 +105,15 @@ function AdminAppContent() {
         {currentView === 'garcom' && (
           <WaiterTablesPage onNavigateToCashier={handleNavigateToCashier} />
         )}
-        {currentView === 'cozinha' && <KitchenKdsPage />}
+        {currentView === 'churrasqueira' && (
+          <KitchenKdsPage initialSector="churrasqueira" pageTitle="Churrasqueira na Brasa" />
+        )}
+        {currentView === 'cozinha' && (
+          <KitchenKdsPage initialSector="cozinha" pageTitle="Cozinha & Preparos" />
+        )}
+        {currentView === 'bar' && (
+          <KitchenKdsPage initialSector="bar" pageTitle="Bar & Bebidas" />
+        )}
         {currentView === 'caixa' && <CashierTabsPage initialTabId={cashierInitialTabId} />}
         {currentView === 'admin' && <AdminDashboard />}
       </main>

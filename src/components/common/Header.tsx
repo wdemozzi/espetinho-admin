@@ -4,6 +4,7 @@ import {
   Flame,
   UtensilsCrossed,
   ChefHat,
+  Beer,
   Receipt,
   ShieldCheck,
   Smartphone,
@@ -59,7 +60,9 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
   // Clean, short, single-line navigation labels that NEVER wrap
   const navItems = [
     { id: 'garcom', label: 'Mesas', icon: UtensilsCrossed, minRole: 'garcom' },
+    { id: 'churrasqueira', label: 'Churrasqueira', icon: Flame, minRole: 'garcom' },
     { id: 'cozinha', label: 'Cozinha', icon: ChefHat, minRole: 'garcom' },
+    { id: 'bar', label: 'Bebidas', icon: Beer, minRole: 'garcom' },
     { id: 'caixa', label: 'Caixa', icon: Receipt, minRole: 'caixa' },
     { id: 'admin', label: 'Gestão', icon: ShieldCheck, minRole: 'admin' },
   ];
@@ -82,7 +85,9 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
     switch (role) {
       case 'admin': return 'bg-purple-950/80 text-purple-300 border-purple-700 hover:border-purple-500';
       case 'caixa': return 'bg-emerald-950/80 text-emerald-300 border-emerald-700 hover:border-emerald-500';
+      case 'churrasqueira': return 'bg-orange-950/80 text-orange-300 border-orange-700 hover:border-orange-500';
       case 'cozinha': return 'bg-amber-950/80 text-amber-300 border-amber-700 hover:border-amber-500';
+      case 'bar': return 'bg-cyan-950/80 text-cyan-300 border-cyan-700 hover:border-cyan-500';
       default: return 'bg-ember-950/80 text-ember-300 border-ember-700 hover:border-ember-500';
     }
   };
