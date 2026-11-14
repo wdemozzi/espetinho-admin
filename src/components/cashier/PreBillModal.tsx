@@ -11,6 +11,7 @@ import {
   Copy,
   Sliders,
   Sparkles,
+  UserPlus,
 } from 'lucide-react';
 import {
   PaperWidth,
@@ -19,6 +20,7 @@ import {
   printThermalReceipt,
   formatReceiptAsPlainText,
   ThermalReceiptItem,
+  ThermalReceiptData,
 } from '../../lib/thermalPrinter';
 
 interface PreBillModalProps {
@@ -100,13 +102,49 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
   const tableLabel = rawTableLabel || 'Balcão';
   const comandaHeaderTitle = isTable ? `Comanda ${tableLabel}` : 'Comanda Balcão';
 
-  const receiptData = {
+  // Resolução de Nome e Telefone do Cliente cadastrados na Comanda ou nos Pedidos da Comanda
+  const initialCustomerName = (() => {
+    if (tab.customer_name && !/^mesa\s*\d+$/i.test(tab.customer_name.trim())) {
+      return tab.customer_name.trim();
+    }
+    const orderWithCustomer = tab.orders?.find(
+      (o) => o.customer_name && !/^mesa\s*\d+$/i.test(o.customer_name.trim())
+    );
+    return orderWithCustomer?.customer_name?.trim() || '';
+  })();
+
+  const initialCustomerPhone = (() => {
+    if (tab.customer_phone && tab.customer_phone.trim()) {
+      return tab.customer_phone.trim();
+    }
+    const orderWithPhone = tab.orders?.find((o) => o.customer_phone && o.customer_phone.trim());
+    return orderWithPhone?.customer_phone?.trim() || '';
+  })();
+
+  const [customerName, setCustomerName] = useState<string>(initialCustomerName);
+  const [customerPhone, setCustomerPhone] = useState<string>(initialCustomerPhone);
+  const [isEditingCustomer, setIsEditingCustomer] = useState<boolean>(false);
+
+  const handleSaveCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      db.updateTabCustomer(tab.id, customerName.trim() || null, customerPhone.trim() || null);
+      tab.customer_name = customerName.trim() || null;
+      tab.customer_phone = customerPhone.trim() || null;
+      setIsEditingCustomer(false);
+    } catch (err) {
+      console.error('Erro ao atualizar cliente da comanda:', err);
+    }
+  };
+
+  const receiptData: ThermalReceiptData = {
     establishmentName: establishment.name,
     establishmentDescription: establishment.description || undefined,
     establishmentPhone: establishment.phone || undefined,
     establishmentAddress: establishment.address || undefined,
     tableName: tableLabel,
-    customerName: tab.customer_name || undefined,
+    customerName: customerName.trim() || undefined,
+    customerPhone: customerPhone.trim() || undefined,
     tabCode: tab.id,
     dateTime: new Date(),
     items: groupedItems,
@@ -137,7 +175,7 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
   // Enviar conferência via WhatsApp
   const handleSendWhatsApp = () => {
     const text = encodeURIComponent(formatReceiptAsPlainText(receiptData));
-    const phone = tab.customer_phone?.replace(/\D/g, '') || '';
+    const phone = (customerPhone.trim() || '').replace(/\D/g, '');
     const url = phone ? `https://wa.me/55${phone}?text=${text}` : `https://wa.me/?text=${text}`;
     window.open(url, '_blank');
   };
@@ -155,6 +193,8 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
               <h3 className="text-sm sm:text-base font-black text-white">Conferência de Conta</h3>
               <p className="text-[11px] text-gray-400">
                 {comandaHeaderTitle} • #{tab.id.slice(-6)}
+                {customerName.trim() && ` • ${customerName.trim()}`}
+                {customerPhone.trim() && ` (${customerPhone.trim()})`}
               </p>
             </div>
           </div>
@@ -254,12 +294,60 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
             </div>
 
             {/* Metadados Comanda */}
-            <div className="flex justify-between text-[11px] font-bold pb-1 border-b border-dotted border-black">
-              <span>{tableLabel}</span>
-              <span>{tab.customer_name ? `Cli: ${tab.customer_name}` : 'Consumo Local'}</span>
-            </div>
-            <div className="text-[9.5px] text-gray-600">
-              Comanda: #{tab.id.slice(-6)}
+            <div className="pb-1 border-b border-dotted border-black">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase">{tableLabel}</span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingCustomer(!isEditingCustomer)}
+                  className="text-[9.5px] text-gray-500 hover:text-black font-semibold flex items-center gap-1 no-print cursor-pointer"
+                  title="Alterar ou vincular nome e telefone do cliente"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  <span>{customerName || customerPhone ? 'Alterar' : '+ Vincular Cliente'}</span>
+                </button>
+              </div>
+
+              {isEditingCustomer ? (
+                <form onSubmit={handleSaveCustomer} className="my-1.5 p-2 bg-gray-100 rounded-md border border-gray-300 space-y-1.5 no-print">
+                  <div className="flex items-center justify-between text-[10px] font-bold text-gray-700">
+                    <span>Vincular Cliente:</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingCustomer(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Nome do Cliente (ex: Pedro)"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-[10px] text-black focus:outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Telefone / WhatsApp (ex: (44) 99735-7463)"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-[10px] text-black focus:outline-none focus:border-amber-500"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-1 bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px] rounded transition shadow-sm"
+                  >
+                    Salvar na Comanda
+                  </button>
+                </form>
+              ) : (
+                <div className="text-[9.5px] text-gray-900 font-bold mt-0.5 break-words">
+                  <span>Comanda: #{tab.id.slice(-6)}</span>
+                  {customerName.trim() && <span> - {customerName.trim()}</span>}
+                  {customerPhone.trim() && <span> • Tel: {customerPhone.trim()}</span>}
+                </div>
+              )}
             </div>
 
             {/* Tabela de Itens */}

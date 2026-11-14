@@ -18,6 +18,7 @@ export interface ThermalReceiptData {
   establishmentAddress?: string;
   tableName?: string;
   customerName?: string;
+  customerPhone?: string;
   tabCode?: string;
   dateTime?: Date | string;
   items: ThermalReceiptItem[];
@@ -90,13 +91,17 @@ export function formatReceiptAsPlainText(data: ThermalReceiptData): string {
   lines.push(padRow(dateStr, timeStr, cols));
   lines.push(divider);
 
-  // Metadados da Comanda / Mesa
+  // Metadados da Comanda / Mesa e Cliente Vinculado
   const tableOrBalcao = data.tableName || 'Balcão';
-  const client = data.customerName ? `Cli: ${data.customerName}` : '';
-  lines.push(padRow(tableOrBalcao, client, cols));
-  if (data.tabCode) {
-    lines.push(`Comanda: #${data.tabCode.slice(-6)}`);
+  lines.push(tableOrBalcao);
+  let comandaLine = data.tabCode ? `Comanda: #${data.tabCode.slice(-6)}` : 'Comanda';
+  if (data.customerName) {
+    comandaLine += ` - ${data.customerName}`;
   }
+  if (data.customerPhone) {
+    comandaLine += ` • Tel: ${data.customerPhone}`;
+  }
+  lines.push(comandaLine);
   lines.push(doubleDivider);
 
   // Itens
@@ -254,16 +259,19 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
         <span>${timeStr}</span>
       </div>
 
-      <!-- Identificação Mesa / Comanda -->
-      <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 800; margin-bottom: 1px;">
-        <span>${escapeHtml(data.tableName || 'Balcão')}</span>
-        <span>${data.customerName ? `Cli: ${escapeHtml(data.customerName)}` : ''}</span>
+      <!-- Identificação Mesa / Comanda e Cliente Vinculado -->
+      <div style="margin-bottom: 2px;">
+        <div style="font-size: 10px; font-weight: 900; text-transform: uppercase; color: #000; line-height: 1.2;">
+          ${escapeHtml(data.tableName || 'Balcão')}
+        </div>
+        <div style="font-size: 8.5px; font-weight: 800; color: #000; word-break: break-word; line-height: 1.25; margin-top: 1px;">
+          <span>Comanda: #${escapeHtml((data.tabCode || '').slice(-6))}</span>${
+            data.customerName ? ` - ${escapeHtml(data.customerName)}` : ''
+          }${
+            data.customerPhone ? ` • Tel: ${escapeHtml(data.customerPhone)}` : ''
+          }
+        </div>
       </div>
-      ${
-        data.tabCode
-          ? `<div style="font-size: 8.5px; color: #333; margin-bottom: 3px;">Comanda: #${escapeHtml(data.tabCode.slice(-6))}</div>`
-          : ''
-      }
 
       <!-- Separador Duplo -->
       <div style="border-top: 2px solid #000; margin: 3px 0 2.5px 0;"></div>
