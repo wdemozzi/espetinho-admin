@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tab, Establishment } from '../../types/database.types';
 import { formatBRL } from '../../lib/currency';
+import { db } from '../../lib/databaseStore';
 import {
   Printer,
   Share2,
@@ -77,12 +78,34 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
   const finalTotalCents = Math.max(0, subtotalCents + serviceFeeCents - tab.discount_cents);
   const remainingDueCents = Math.max(0, finalTotalCents - tab.paid_cents);
 
+  // Resolução inteligente da Mesa / Comanda para garantir a exibição de "Mesa X" / "Comanda Mesa X"
+  const resolvedTable =
+    tab.table ||
+    (tab.table_id ? db.getTableById(tab.table_id) : undefined) ||
+    (tab.orders?.find((o) => o.table_number != null)?.table_number
+      ? db.getTables().find((t) => t.table_number === tab.orders?.find((o) => o.table_number != null)?.table_number)
+      : undefined);
+
+  let rawTableLabel = resolvedTable?.label;
+  if (!rawTableLabel && tab.table_id) {
+    const num = tab.table_id.replace(/\D/g, '');
+    if (num) rawTableLabel = `Mesa ${num.padStart(2, '0')}`;
+  }
+  if (!rawTableLabel && tab.customer_name) {
+    const match = tab.customer_name.match(/mesa\s*(\d+)/i);
+    if (match) rawTableLabel = `Mesa ${match[1].padStart(2, '0')}`;
+  }
+
+  const isTable = Boolean(rawTableLabel);
+  const tableLabel = rawTableLabel || 'Balcão';
+  const comandaHeaderTitle = isTable ? `Comanda ${tableLabel}` : 'Comanda Balcão';
+
   const receiptData = {
     establishmentName: establishment.name,
     establishmentDescription: establishment.description || undefined,
     establishmentPhone: establishment.phone || undefined,
     establishmentAddress: establishment.address || undefined,
-    tableName: tab.table ? tab.table.label : 'Balcão',
+    tableName: tableLabel,
     customerName: tab.customer_name || undefined,
     tabCode: tab.id,
     dateTime: new Date(),
@@ -131,7 +154,7 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
             <div>
               <h3 className="text-sm sm:text-base font-black text-white">Conferência de Conta</h3>
               <p className="text-[11px] text-gray-400">
-                {tab.table ? tab.table.label : 'Comanda Balcão'} • #{tab.id.slice(-6)}
+                {comandaHeaderTitle} • #{tab.id.slice(-6)}
               </p>
             </div>
           </div>
@@ -232,7 +255,7 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
 
             {/* Metadados Comanda */}
             <div className="flex justify-between text-[11px] font-bold pb-1 border-b border-dotted border-black">
-              <span>{tab.table ? tab.table.label : 'Balcão'}</span>
+              <span>{tableLabel}</span>
               <span>{tab.customer_name ? `Cli: ${tab.customer_name}` : 'Consumo Local'}</span>
             </div>
             <div className="text-[9.5px] text-gray-600">

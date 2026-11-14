@@ -399,7 +399,7 @@ export const WaiterTablesPage: React.FC<WaiterTablesPageProps> = ({ onNavigateTo
 
                     <button
                       type="button"
-                      onClick={() => setSelectedTabForPreBill(activeTab)}
+                      onClick={() => setSelectedTabForPreBill({ ...activeTab, table: activeTab.table || table })}
                       className="w-full py-1.5 px-3 rounded-lg bg-charcoal-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs flex items-center justify-center gap-1.5 transition"
                     >
                       <Receipt className="w-3.5 h-3.5 text-ember-400" />

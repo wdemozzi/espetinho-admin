@@ -165,6 +165,10 @@ export const BillSplitModal: React.FC<BillSplitModalProps> = ({
   const currentSplit = db.getTabById(tab.id)?.splits?.[0];
   const remainingTabBalance = calculateRemainingBalance(tab.total_cents, tab.discount_cents, tab.paid_cents);
 
+  const resolvedTable = tab.table || (tab.table_id ? db.getTableById(tab.table_id) : undefined);
+  const tableLabel = resolvedTable ? resolvedTable.label : (tab.table_id ? `Mesa ${tab.table_id.replace(/\D/g, '').padStart(2, '0')}` : null);
+  const comandaTitle = tableLabel ? `Comanda ${tableLabel}` : 'Comanda Balcão';
+
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <div className="relative w-full max-w-4xl bg-charcoal-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden my-auto">
@@ -178,7 +182,7 @@ export const BillSplitModal: React.FC<BillSplitModalProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white tracking-tight">Dividir Conta da Comanda</h2>
                 <span className="px-2 py-0.5 rounded bg-gray-800 text-xs font-semibold text-gray-300">
-                  {tab.table ? tab.table.label : 'Comanda Balcão'}
+                  {comandaTitle}
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
