@@ -378,6 +378,68 @@ export const AdminDashboard: React.FC = () => {
     setNewAddonPrice('');
   };
 
+  const handleLoadEspetinhoComCatupiryPreset = () => {
+    const espetos = [
+      { name: 'Kafta', price_cents: 0 },
+      { name: 'Carne (Alcatra)', price_cents: 0 },
+      { name: 'Coração de Frango', price_cents: 0 },
+      { name: 'Frango com Bacon', price_cents: 0 },
+      { name: 'Queijo Coalho', price_cents: 0 },
+      { name: 'Picanha Nobre (+R$ 3,00)', price_cents: 300 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        addon_selection_mode: 'single',
+        addon_group_title: 'Escolha o Espeto (1 Incluso)',
+        addons: espetos.map((e, idx) => ({
+          id: `add-espeto-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: e.name,
+          price_cents: e.price_cents,
+          is_available: true,
+          sort_order: idx + 1,
+          addon_type: 'single',
+        })),
+      };
+    });
+    setToastMessage('🍢 Opções de espetos carregadas! Regra definida: 01 tipo incluso no valor de R$ 15,00.');
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleLoadCaipirinhaSaboresPreset = () => {
+    const sabores = [
+      { name: 'Limão Taiti Tradicional', price_cents: 0 },
+      { name: 'Morango Fresco', price_cents: 0 },
+      { name: 'Maracujá Natural', price_cents: 0 },
+      { name: 'Abacaxi com Hortelã', price_cents: 0 },
+      { name: 'Kiwi (+R$ 2,00)', price_cents: 200 },
+      { name: 'Frutas Vermelhas (+R$ 3,00)', price_cents: 300 },
+    ];
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        addon_selection_mode: 'single',
+        addon_group_title: 'Escolha o Sabor da Caipirinha (1 Incluso)',
+        addons: sabores.map((s, idx) => ({
+          id: `add-caipi-${Date.now()}-${idx}`,
+          product_id: prev.id || '',
+          name: s.name,
+          price_cents: s.price_cents,
+          is_available: true,
+          sort_order: idx + 1,
+          addon_type: 'single',
+        })),
+      };
+    });
+    setToastMessage('🍋 Sabores de Caipirinha carregados! Regra definida: 01 sabor incluso no valor.');
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
   const handleLoadJantinhaEspetosPreset = () => {
     const defaultEspetos = [
       { name: 'Espeto: Alcatra Macia', price_cents: 0 },
@@ -2459,45 +2521,122 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                       </span>
                     </div>
 
-                    {/* Banner de Atalhos Rápidos para Jantinhas */}
-                    {isJantinha && (
-                      <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-800/40 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[11px] font-bold text-amber-300">
-                            ⚡ Atalhos para Jantinhas Completas:
-                          </p>
-                          <span className="text-[10px] text-amber-400/80 font-mono">
-                            {espetoAddons.length} espeto(s) configurado(s)
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <button
-                            type="button"
-                            onClick={handleLoadJantinhaEspetosPreset}
-                            className="px-2.5 py-1 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white font-bold text-[11px] flex items-center gap-1.5 shadow transition"
-                          >
-                            <Flame className="w-3.5 h-3.5" />
-                            <span>+ Carregar Espetinhos da Casa (Alcatra, Frango, Kafta, Queijo...)</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleImportEspetosFromMenu}
-                            className="px-2.5 py-1 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 border border-amber-700/60 text-amber-200 font-bold text-[11px] flex items-center gap-1.5 transition"
-                          >
-                            <Utensils className="w-3.5 h-3.5" />
-                            <span>Importar Espetos do Cardápio</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleLoadJantinhaExtrasPreset}
-                            className="px-2.5 py-1 rounded-lg bg-charcoal-800 hover:bg-charcoal-700 border border-gray-700 text-gray-300 font-bold text-[11px] flex items-center gap-1.5 transition"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>+ Extras (Mandioca, Tropeiro, Vinagrete)</span>
-                          </button>
-                        </div>
+                    {/* REGRA DE ESCOLHA DOS OPCIONAIS / SABORES */}
+                    <div className="p-3 rounded-xl bg-charcoal-900 border border-gray-700/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Regra de Escolha do Cliente:</span>
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-mono font-bold px-2 py-0.5 rounded bg-charcoal-800 border border-gray-700">
+                          {editingProduct.addon_selection_mode === 'single'
+                            ? '🔘 Escolha Única (1 Incluso)'
+                            : editingProduct.addon_selection_mode === 'hybrid'
+                            ? '⚡ 1 Sabor + Extras'
+                            : '☑️ Múltipla Escolha'}
+                        </span>
                       </div>
-                    )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({ ...editingProduct, addon_selection_mode: 'single', addon_group_title: editingProduct.addon_group_title || 'Escolha 1 Opção' })}
+                          className={`p-2 rounded-lg border text-left text-xs transition ${
+                            editingProduct.addon_selection_mode === 'single'
+                              ? 'bg-amber-600 text-white border-amber-500 font-bold shadow'
+                              : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                          }`}
+                        >
+                          <div className="font-bold flex items-center gap-1">
+                            <span>🔘</span>
+                            <span>Escolha Única (1 Tipo)</span>
+                          </div>
+                          <p className="text-[10px] text-gray-300 mt-0.5 opacity-90">
+                            Nesse valor, o cliente só pode escolher 01 opção (ex: Catupiry, Caipirinha)
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({ ...editingProduct, addon_selection_mode: 'multiple', addon_group_title: undefined })}
+                          className={`p-2 rounded-lg border text-left text-xs transition ${
+                            editingProduct.addon_selection_mode === 'multiple' || !editingProduct.addon_selection_mode
+                              ? 'bg-amber-600 text-white border-amber-500 font-bold shadow'
+                              : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                          }`}
+                        >
+                          <div className="font-bold flex items-center gap-1">
+                            <span>☑️</span>
+                            <span>Múltipla Escolha Livre</span>
+                          </div>
+                          <p className="text-[10px] text-gray-300 mt-0.5 opacity-90">
+                            O cliente pode marcar quantos adicionais quiser ou nenhum (ex: adicionais pagos)
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({ ...editingProduct, addon_selection_mode: 'hybrid' })}
+                          className={`p-2 rounded-lg border text-left text-xs transition ${
+                            editingProduct.addon_selection_mode === 'hybrid'
+                              ? 'bg-amber-600 text-white border-amber-500 font-bold shadow'
+                              : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                          }`}
+                        >
+                          <div className="font-bold flex items-center gap-1">
+                            <span>⚡</span>
+                            <span>Híbrido (1 Tipo + Extras)</span>
+                          </div>
+                          <p className="text-[10px] text-gray-300 mt-0.5 opacity-90">
+                            1 opção inclusa obrigatória + lista de adicionais extras opcionais
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Presets Rápidos de 1 Clique */}
+                    <div className="p-2.5 rounded-xl bg-charcoal-900 border border-amber-500/30 space-y-2">
+                      <p className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                        <span>⚡</span>
+                        <span>Carregar Opções Prontas de 1 Clique:</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleLoadEspetinhoComCatupiryPreset}
+                          className="px-2.5 py-1 rounded-lg bg-orange-600/90 hover:bg-orange-500 text-white font-bold text-[11px] flex items-center gap-1 shadow transition"
+                          title="Carrega Kafta, Carne, Coração, Frango, Queijo com escolha de apenas 1 tipo no valor"
+                        >
+                          <span>🍢</span>
+                          <span>+ Opções de Espetos (Kafta, Carne, Coração, Frango, Queijo...)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleLoadCaipirinhaSaboresPreset}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1 shadow transition"
+                          title="Carrega Limão, Morango, Maracujá, Abacaxi, Kiwi com escolha de apenas 1 sabor no valor"
+                        >
+                          <span>🍋</span>
+                          <span>+ Sabores de Caipirinha (Limão, Morango, Maracujá...)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleLoadMilkShakeSaboresPreset}
+                          className="px-2.5 py-1 rounded-lg bg-pink-600/90 hover:bg-pink-500 text-white font-bold text-[11px] flex items-center gap-1 shadow transition"
+                        >
+                          <span>🥤</span>
+                          <span>+ Sabores de Milk-Shake</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleLoadDrinksPreset}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-bold text-[11px] flex items-center gap-1 shadow transition"
+                        >
+                          <span>🥃</span>
+                          <span>+ Destilados p/ Copão</span>
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Banner de Atalhos Rápidos para Milk-Shake */}
                     {isMilkShake && (
@@ -2578,7 +2717,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                               }`}
                             >
                               <div className="flex items-center gap-2">
-                                {isEspeto ? (
+                                {editingProduct.addon_selection_mode === 'single' ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                    🔘 1 OPÇÃO OBRIGATÓRIA (INCLUSO)
+                                  </span>
+                                ) : isEspeto ? (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                     🍢 ESPETO ACOMPANHANTE
                                   </span>
@@ -2599,11 +2742,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className={`font-mono font-bold text-xs ${add.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso (Grátis)'}
+                                  {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso (R$ 0,00)'}
                                 </span>
                                 <button
                                   type="button"
-                                  title="Remover complemento"
+                                  title="Remover opção"
                                   onClick={() => handleRemoveAddonFromProduct(add.id)}
                                   className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-950/40 transition"
                                 >
@@ -2618,64 +2761,33 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
 
                     {/* Formulário rápido para adicionar complemento */}
                     <div className="space-y-2 pt-1 border-t border-gray-800">
-                      {isJantinha && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span>Adicionar manualmente:</span>
+                      {/* Chips rápidos de 1 clique para preencher o nome */}
+                      <div className="flex flex-wrap items-center gap-1 text-[11px] text-gray-400">
+                        <span className="text-[10px] text-gray-400 font-semibold mr-1">Sugestões rápidas:</span>
+                        {[
+                          'Kafta',
+                          'Carne',
+                          'Coração',
+                          'Frango',
+                          'Queijo Coalho',
+                          'Limão Taiti',
+                          'Morango',
+                          'Maracujá',
+                          'Abacaxi',
+                        ].map((sug) => (
                           <button
-                            type="button"
-                            onClick={() => setNewAddonName('Espeto: ')}
-                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-amber-300 border border-gray-700 font-medium text-[10px]"
-                          >
-                            + Iniciar com "Espeto:"
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNewAddonName('Mandioca Amanteigada Extra');
-                              setNewAddonPrice('5,00');
-                            }}
-                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 border border-gray-700 font-medium text-[10px]"
-                          >
-                            Mandioca Extra
-                          </button>
-                        </div>
-                      )}
-
-                      {isMilkShake && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span>Adicionar rapidamente:</span>
-                          <button
+                            key={sug}
                             type="button"
                             onClick={() => {
-                              setNewAddonName('Sabor: ');
+                              setNewAddonName(sug);
                               setNewAddonPrice('0');
                             }}
-                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-pink-300 border border-gray-700 font-medium text-[10px]"
+                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 hover:text-white border border-gray-700 font-medium text-[10px] transition"
                           >
-                            + Iniciar com "Sabor:"
+                            + {sug}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNewAddonName('Chantilly Artesanal (+R$ 3,00)');
-                              setNewAddonPrice('3,00');
-                            }}
-                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 border border-gray-700 font-medium text-[10px]"
-                          >
-                            + Chantilly (+R$ 3,00)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNewAddonName('Nutella Pura (+R$ 4,00)');
-                              setNewAddonPrice('4,00');
-                            }}
-                            className="px-2 py-0.5 rounded bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 border border-gray-700 font-medium text-[10px]"
-                          >
-                            + Nutella (+R$ 4,00)
-                          </button>
-                        </div>
-                      )}
+                        ))}
+                      </div>
 
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input

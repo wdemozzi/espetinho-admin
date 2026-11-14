@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   ArrowRight,
   SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { SectorBadge } from '../common/Badge';
 
@@ -77,7 +78,15 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
     const isMilkShake = product.category_id === 'b7' || product.name.toLowerCase().includes('milk');
     const isDrink = product.category_id === 'b8' || product.name.toLowerCase().includes('copão') || product.name.toLowerCase().includes('copao') || product.name.toLowerCase().includes('drink') || product.name.toLowerCase().includes('alcoólico');
 
-    if (isJantinha && product.addons && product.addons.length > 0) {
+    const isSingleChoice =
+      product.addon_selection_mode === 'single' ||
+      product.name.toLowerCase().includes('catupiry') ||
+      product.name.toLowerCase().includes('caipirinha');
+
+    if (isSingleChoice && product.addons && product.addons.length > 0) {
+      const defaultOpt = product.addons.find((a) => a.price_cents === 0) || product.addons[0];
+      setTempAddons(defaultOpt ? [{ name: defaultOpt.name, price_cents: defaultOpt.price_cents }] : []);
+    } else if (isJantinha && product.addons && product.addons.length > 0) {
       const defaultEspeto = product.addons.find((a) => (a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:')) && a.price_cents === 0)
         || product.addons.find((a) => a.name.toLowerCase().includes('espeto') || a.name.startsWith('Espeto:'))
         || product.addons[0];
@@ -653,6 +662,75 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                   return isChecked ? prev.filter((a) => a.name !== add.name) : [...prev, add];
                 });
               };
+
+              const isGenericSingle =
+                addonProduct.addon_selection_mode === 'single' ||
+                addonProduct.name.toLowerCase().includes('catupiry') ||
+                addonProduct.name.toLowerCase().includes('caipirinha');
+
+              if (isGenericSingle && addonProduct.addons && addonProduct.addons.length > 0) {
+                const groupTitle =
+                  addonProduct.addon_group_title ||
+                  (addonProduct.name.toLowerCase().includes('espet')
+                    ? 'Escolha o Tipo de Espeto (1 Opção Inclusa):'
+                    : addonProduct.name.toLowerCase().includes('caipirinha')
+                    ? 'Escolha o Sabor da Caipirinha (1 Opção Inclusa):'
+                    : 'Escolha 1 Opção (Incluso no Valor):');
+
+                const handleSelectSingle = (add: { name: string; price_cents: number }) => {
+                  setTempAddons([{ name: add.name, price_cents: add.price_cents }]);
+                };
+
+                return (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-amber-950/25 border border-amber-800/40 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                          {addonProduct.name.toLowerCase().includes('espet') ? (
+                            <Flame className="w-3.5 h-3.5 text-orange-400" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          )}
+                          <span>{groupTitle}</span>
+                        </label>
+                        <span className="text-[10px] text-amber-400 font-mono font-bold px-2 py-0.5 rounded bg-amber-900/60 border border-amber-700/50">
+                          1 Obrigatório
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-400">
+                        Neste valor de {formatBRL(addonProduct.price_cents)}, selecione apenas 1 opção:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-0.5">
+                        {addonProduct.addons.map((add) => {
+                          const isSelected = tempAddons.some((a) => a.name === add.name);
+                          return (
+                            <button
+                              key={add.id}
+                              type="button"
+                              onClick={() => handleSelectSingle(add)}
+                              className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center justify-between transition ${
+                                isSelected
+                                  ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-amber-700 font-black' : 'border-gray-500'}`}>
+                                  {isSelected ? '●' : ''}
+                                </div>
+                                <span className="truncate">{add.name.replace(/^(Espeto|Sabor):\s*/i, '')}</span>
+                              </div>
+                              <span className={`font-mono text-[11px] font-bold flex-shrink-0 ${isSelected ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
 
               if (isJantinha && espetoOptions.length > 0) {
                 return (
