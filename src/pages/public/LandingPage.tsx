@@ -93,10 +93,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [menuViewMode, setMenuViewMode] = useState<'compact' | 'grid'>('compact');
 
+  // Follow-up pós-adição para produtos de escolha única (1 sabor por item, ex: Catupiry, Caipirinha)
+  const [singleChoiceFollowUp, setSingleChoiceFollowUp] = useState<{
+    product: Product;
+    lastAddonName: string;
+    countAdded: number;
+    stepNumber: number;
+  } | null>(null);
+  const [flavorStepCount, setFlavorStepCount] = useState<number>(1);
+
   const openProductModal = (product: Product) => {
     setActiveModalProduct(product);
     setModalQuantity(1);
     setModalNotes('');
+    setSingleChoiceFollowUp(null);
+    setFlavorStepCount(1);
 
     const isGenericSingle =
       product.addon_selection_mode === 'single' ||
@@ -131,15 +142,75 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   const handleAddToCart = () => {
     if (!activeModalProduct) return;
+
+    const isGenericSingle =
+      activeModalProduct.addon_selection_mode === 'single' ||
+      (activeModalProduct.addons && activeModalProduct.addons.some((a) => a.addon_type === 'single')) ||
+      activeModalProduct.name.toLowerCase().includes('catupiry') ||
+      activeModalProduct.name.toLowerCase().includes('caipirinha');
+
+    const selectedFlavor = modalSelectedAddons[0]?.name.replace(/^(Espeto|Sabor):\s*/i, '') || 'Opção selecionada';
+    const currentProduct = activeModalProduct;
+    const currentNotes = modalNotes;
+    const currentAddons = [...modalSelectedAddons];
+    const currentQuantity = modalQuantity;
+    const currentStep = flavorStepCount;
+
     setCart((prev) => [
       ...prev,
       {
-        product: activeModalProduct,
-        quantity: modalQuantity,
-        selectedAddons: modalSelectedAddons,
-        notes: modalNotes,
+        product: currentProduct,
+        quantity: currentQuantity,
+        selectedAddons: currentAddons,
+        notes: currentNotes,
       },
     ]);
+
+    // Se for produto com escolha única (1 sabor por espeto/bebida), abre follow-up para orientar
+    if (isGenericSingle) {
+      setSingleChoiceFollowUp({
+        product: currentProduct,
+        lastAddonName: selectedFlavor,
+        countAdded: currentQuantity,
+        stepNumber: currentStep,
+      });
+      return;
+    }
+
+    setActiveModalProduct(null);
+  };
+
+  // Follow-up: Escolher outro sabor para o próximo espetinho / bebida
+  const handlePickAnotherFlavor = () => {
+    if (!singleChoiceFollowUp) return;
+    setFlavorStepCount((prev) => prev + 1);
+    setModalSelectedAddons([]);
+    setModalQuantity(1);
+    setModalNotes('');
+    setSingleChoiceFollowUp(null);
+  };
+
+  // Follow-up: Manter o mesmo sabor (+1)
+  const handleRepeatSameFlavor = () => {
+    if (!singleChoiceFollowUp) return;
+    const { product } = singleChoiceFollowUp;
+    setCart((prev) => {
+      const lastIndex = prev.length - 1;
+      if (lastIndex >= 0 && prev[lastIndex].product.id === product.id) {
+        return prev.map((item, idx) =>
+          idx === lastIndex ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return prev;
+    });
+    setSingleChoiceFollowUp((prev) =>
+      prev ? { ...prev, countAdded: prev.countAdded + 1 } : null
+    );
+  };
+
+  // Follow-up: Concluir e fechar modal
+  const handleFinishFollowUp = () => {
+    setSingleChoiceFollowUp(null);
     setActiveModalProduct(null);
   };
 
@@ -988,9 +1059,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* PRODUCT CUSTOMIZATION MODAL (ADDONS & NOTES) */}
       {activeModalProduct && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
-          <div className="relative w-full max-w-lg bg-charcoal-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden my-auto">
-            {activeModalProduct.image_url && (
-              <div className="h-44 w-full relative">
+          <div className="relative w-full max-w-lg bg-charcoal-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh]">
+            {/* Header / Imagem */}
+            {activeModalProduct.image_url && !singleChoiceFollowUp && (
+              <div className="h-44 w-full relative flex-shrink-0">
                 <img
                   src={activeModalProduct.image_url}
                   alt={activeModalProduct.name}
@@ -998,7 +1070,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => setActiveModalProduct(null)}
+                  onClick={handleFinishFollowUp}
                   className="absolute top-3 right-3 p-1.5 rounded-xl bg-black/60 text-white hover:bg-black"
                 >
                   <X className="w-4 h-4" />
@@ -1006,220 +1078,356 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             )}
 
-            <div className="p-5 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-extrabold text-lg text-white">{activeModalProduct.name}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{activeModalProduct.description}</p>
+            {/* Top Bar if image is hidden or in follow-up */}
+            {(!activeModalProduct.image_url || singleChoiceFollowUp) && (
+              <div className="p-3 bg-charcoal-850 border-b border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-purple-400" />
+                  <span className="font-extrabold text-sm text-white">{activeModalProduct.name}</span>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <span className="font-mono text-base font-extrabold text-amber-400">
-                    {formatBRL(
-                      (activeModalProduct.price_cents + modalSelectedAddons.reduce((sum, a) => sum + a.price_cents, 0)) * modalQuantity
-                    )}
-                  </span>
-                  {modalSelectedAddons.length > 0 && (
-                    <p className="text-[10px] text-purple-300 font-medium">
-                      +{modalSelectedAddons.length} complementos
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Addons selection */}
-              {activeModalProduct.addons && activeModalProduct.addons.length > 0 && (() => {
-                const isGenericSingle =
-                  activeModalProduct.addon_selection_mode === 'single' ||
-                  (activeModalProduct.addons && activeModalProduct.addons.some((a) => a.addon_type === 'single')) ||
-                  activeModalProduct.name.toLowerCase().includes('catupiry') ||
-                  activeModalProduct.name.toLowerCase().includes('caipirinha');
-
-                const groupTitle =
-                  activeModalProduct.addon_group_title ||
-                  (activeModalProduct.name.toLowerCase().includes('espet')
-                    ? 'Escolha o Tipo de Espeto (1 Incluso):'
-                    : activeModalProduct.name.toLowerCase().includes('caipirinha')
-                    ? 'Escolha o Sabor da Caipirinha (1 Incluso):'
-                    : 'Escolha 1 Opção (Incluso no Valor):');
-
-                if (isGenericSingle) {
-                  return (
-                    <div className="space-y-2 pt-2 border-t border-gray-800">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                          <span>🔘</span>
-                          <span>{groupTitle}</span>
-                        </label>
-                        <span className="text-[10px] text-amber-400 font-mono font-bold px-2 py-0.5 rounded bg-amber-900/60 border border-amber-700/50">
-                          1 Obrigatório
-                        </span>
-                      </div>
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                        {activeModalProduct.addons.map((addon) => {
-                          const isSelected = modalSelectedAddons.some((a) => a.name === addon.name);
-                          return (
-                            <div
-                              key={addon.id}
-                              onClick={() => handleSelectSingleAddon(addon)}
-                              className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
-                                isSelected
-                                  ? 'bg-amber-600 text-white border-amber-500 shadow-md font-bold'
-                                  : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-4 h-4 rounded-full flex items-center justify-center border text-[9px] ${
-                                    isSelected ? 'bg-white text-amber-700 border-white font-black' : 'border-gray-500 bg-charcoal-900'
-                                  }`}
-                                >
-                                  {isSelected ? '●' : ''}
-                                </div>
-                                <span>{addon.name.replace(/^(Espeto|Sabor):\s*/i, '')}</span>
-                              </div>
-                              <span
-                                className={`font-mono text-xs font-bold ${
-                                  isSelected ? 'text-white' : addon.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'
-                                }`}
-                              >
-                                {addon.price_cents > 0 ? `+${formatBRL(addon.price_cents)}` : 'Incluso'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-2 pt-2 border-t border-gray-800">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-gray-200 block">
-                        {activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')
-                          ? '🍧 Escolha seus Complementos (preço por item):'
-                          : activeModalProduct.name.toLowerCase().includes('jantinha')
-                          ? '🍽️ Escolha o Espeto & Acompanhamentos:'
-                          : '✨ Opções & Personalização:'}
-                      </label>
-                      <span className="text-[10px] text-gray-400 font-mono">
-                        {modalSelectedAddons.length} selecionado(s)
-                      </span>
-                    </div>
-                    <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                      {activeModalProduct.addons.map((addon) => {
-                        const isSelected = modalSelectedAddons.some((a) => a.name === addon.name);
-                        return (
-                          <div
-                            key={addon.id}
-                            onClick={() => handleToggleAddon(addon)}
-                            className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
-                              isSelected
-                                ? 'bg-purple-950/70 border-purple-500 text-white shadow font-semibold'
-                                : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isSelected ? 'bg-purple-500 border-purple-400 text-white' : 'border-gray-600 bg-charcoal-900'}`}>
-                                {isSelected ? '✓' : ''}
-                              </div>
-                              <span>{addon.name}</span>
-                            </div>
-                            <span className={`font-mono text-xs font-bold ${isSelected ? 'text-amber-300' : addon.price_cents > 0 ? 'text-amber-400' : 'text-gray-400'}`}>
-                              {addon.price_cents > 0 ? `+${formatBRL(addon.price_cents)}` : 'Incluso'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Special notes */}
-              <div className="space-y-1.5 pt-2 border-t border-gray-800">
-                <label className="text-xs font-semibold text-gray-400 block">
-                  Observações para a Cozinha (opcional):
-                </label>
-                <input
-                  type="text"
-                  placeholder={
-                    activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')
-                      ? 'Ex: Leite condensado no fundo, sem banana...'
-                      : 'Ex: Ao ponto, sem vinagrete, pouco sal...'
-                  }
-                  value={modalNotes}
-                  onChange={(e) => setModalNotes(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-charcoal-800 border border-gray-700 text-xs text-white focus:outline-none focus:border-purple-500"
-                />
-
-                {/* Sugestões rápidas de observações */}
-                <div className="flex flex-wrap gap-1 pt-0.5">
-                  {(activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')) ? (
-                    ['Sem banana', 'Ninho no fundo', 'Caprichar na calda', 'Pouco doce'].map((sug) => (
-                      <button
-                        key={sug}
-                        type="button"
-                        onClick={() => setModalNotes((prev) => prev ? `${prev}, ${sug}` : sug)}
-                        className="text-[10px] px-2 py-0.5 rounded bg-charcoal-800 border border-gray-700 hover:border-purple-500 text-gray-300 hover:text-white transition"
-                      >
-                        +{sug}
-                      </button>
-                    ))
-                  ) : (
-                    ['Ao ponto', 'Bem passado', 'Pouco sal', 'Sem vinagrete', 'Sem farofa'].map((sug) => (
-                      <button
-                        key={sug}
-                        type="button"
-                        onClick={() => setModalNotes((prev) => prev ? `${prev}, ${sug}` : sug)}
-                        className="text-[10px] px-2 py-0.5 rounded bg-charcoal-800 border border-gray-700 hover:border-purple-500 text-gray-300 hover:text-white transition"
-                      >
-                        +{sug}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Quantity selector & Add Button */}
-              <div className="pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 bg-charcoal-800 border border-gray-700 rounded-xl p-1">
-                  <button
-                    type="button"
-                    onClick={() => setModalQuantity((q) => Math.max(1, q - 1))}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <span className="font-mono font-bold text-sm text-white px-2">
-                    {modalQuantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setModalQuantity((q) => q + 1)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-white"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-
                 <button
                   type="button"
-                  onClick={handleAddToCart}
-                  className="flex-1 py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs shadow-lg shadow-purple-600/30 transition flex items-center justify-center gap-2"
+                  onClick={handleFinishFollowUp}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-charcoal-800 transition"
                 >
-                  <Check className="w-4 h-4" />
-                  <span>
-                    Adicionar •{' '}
-                    {formatBRL(
-                      (activeModalProduct.price_cents +
-                        modalSelectedAddons.reduce((acc, a) => acc + a.price_cents, 0)) *
-                        modalQuantity
-                    )}
-                  </span>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </div>
+            )}
+
+            {singleChoiceFollowUp ? (
+              /* TELA DE DECISÃO: ESCOLHER OUTRO SABOR OU MANTER O MESMO */
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white">
+                      {singleChoiceFollowUp.product.name} Adicionado!
+                    </h4>
+                    <p className="text-xs text-emerald-300 font-bold mt-0.5">
+                      Sabor escolhido: <span className="text-white underline">{singleChoiceFollowUp.lastAddonName}</span>
+                    </p>
+                    <p className="text-[11px] text-gray-300 mt-1">
+                      {singleChoiceFollowUp.countAdded > 1
+                        ? `${singleChoiceFollowUp.countAdded} unidades deste sabor já estão na sacola.`
+                        : '1 unidade já adicionada à sua sacola.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-charcoal-850 border border-amber-500/40 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-300 font-extrabold text-xs uppercase tracking-wide">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Deseja adicionar mais um {singleChoiceFollowUp.product.name.toLowerCase().includes('caipirinha') ? 'copo' : 'espeto'}?</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Opção 1: Escolher outro sabor */}
+                    <button
+                      type="button"
+                      onClick={handlePickAnotherFlavor}
+                      className="w-full py-3 px-3.5 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-white font-extrabold text-xs flex items-center justify-between shadow-lg shadow-amber-600/30 transition active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                        <span>Escolher OUTRO sabor (para o próximo)</span>
+                      </div>
+                      <span className="text-[11px] bg-black/30 px-2 py-0.5 rounded font-mono font-bold">
+                        +{formatBRL(singleChoiceFollowUp.product.price_cents)}
+                      </span>
+                    </button>
+
+                    {/* Opção 2: Manter o mesmo sabor */}
+                    <button
+                      type="button"
+                      onClick={handleRepeatSameFlavor}
+                      className="w-full py-3 px-3.5 rounded-xl bg-charcoal-800 hover:bg-gray-700 border border-gray-600 text-gray-100 font-bold text-xs flex items-center justify-between transition active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-2 text-left truncate">
+                        <span className="text-base">🔁</span>
+                        <span className="truncate">Manter o MESMO sabor (+1 {singleChoiceFollowUp.lastAddonName})</span>
+                      </div>
+                      <span className="text-[11px] bg-charcoal-900 px-2 py-0.5 rounded font-mono text-gray-300 font-bold">
+                        +{formatBRL(singleChoiceFollowUp.product.price_cents)}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleFinishFollowUp}
+                    className="w-full py-2.5 rounded-xl bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-gray-700 transition"
+                  >
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>Concluir e ver Sacola ({cartItemsCount} {cartItemsCount === 1 ? 'item' : 'itens'})</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* FORMULÁRIO NORMAL DE ESCOLHA DO PRODUTO */
+              <>
+                <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                  {/* Banner caso esteja no 2º espeto em diante */}
+                  {flavorStepCount > 1 && (
+                    <div className="p-3 bg-amber-950/40 border border-amber-500/50 rounded-xl text-amber-200 text-xs flex items-center justify-between animate-pulse">
+                      <span className="font-bold flex items-center gap-1.5">
+                        <span>🍢</span>
+                        <span>{flavorStepCount}º Espeto • Escolha o próximo sabor:</span>
+                      </span>
+                      <span className="text-[10px] bg-amber-600 text-white font-mono font-bold px-2 py-0.5 rounded">
+                        1 Incluso
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-extrabold text-lg text-white">{activeModalProduct.name}</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">{activeModalProduct.description}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="font-mono text-base font-extrabold text-amber-400">
+                        {formatBRL(
+                          (activeModalProduct.price_cents + modalSelectedAddons.reduce((sum, a) => sum + a.price_cents, 0)) * modalQuantity
+                        )}
+                      </span>
+                      {modalSelectedAddons.length > 0 && (
+                        <p className="text-[10px] text-purple-300 font-medium">
+                          +{modalSelectedAddons.length} complementos
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Addons selection */}
+                  {activeModalProduct.addons && activeModalProduct.addons.length > 0 && (() => {
+                    const isGenericSingle =
+                      activeModalProduct.addon_selection_mode === 'single' ||
+                      (activeModalProduct.addons && activeModalProduct.addons.some((a) => a.addon_type === 'single')) ||
+                      activeModalProduct.name.toLowerCase().includes('catupiry') ||
+                      activeModalProduct.name.toLowerCase().includes('caipirinha');
+
+                    const groupTitle =
+                      activeModalProduct.addon_group_title ||
+                      (activeModalProduct.name.toLowerCase().includes('espet')
+                        ? 'Escolha o Tipo de Espeto (1 Incluso):'
+                        : activeModalProduct.name.toLowerCase().includes('caipirinha')
+                        ? 'Escolha o Sabor da Caipirinha (1 Incluso):'
+                        : 'Escolha 1 Opção (Incluso no Valor):');
+
+                    if (isGenericSingle) {
+                      return (
+                        <div className="space-y-2 pt-2 border-t border-gray-800">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                              <span>🔘</span>
+                              <span>{groupTitle}</span>
+                            </label>
+                            <span className="text-[10px] text-amber-400 font-mono font-bold px-2 py-0.5 rounded bg-amber-900/60 border border-amber-700/50">
+                              1 Obrigatório
+                            </span>
+                          </div>
+
+                          {/* Dica explicativa */}
+                          <div className="p-2.5 rounded-xl bg-amber-950/25 border border-amber-800/40 space-y-0.5">
+                            <p className="text-[11px] text-amber-200/90 font-medium">
+                              💡 No valor de {formatBRL(activeModalProduct.price_cents)} está incluso <strong>1 sabor por unidade</strong>.
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              Quer sabores diferentes? Ao clicar em Adicionar, você poderá escolher o próximo sabor com 1 clique!
+                            </p>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                            {activeModalProduct.addons.map((addon) => {
+                              const isSelected = modalSelectedAddons.some((a) => a.name === addon.name);
+                              return (
+                                <div
+                                  key={addon.id}
+                                  onClick={() => handleSelectSingleAddon(addon)}
+                                  className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
+                                    isSelected
+                                      ? 'bg-amber-600 text-white border-amber-500 shadow-md font-bold'
+                                      : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-4 h-4 rounded-full flex items-center justify-center border text-[9px] ${
+                                        isSelected ? 'bg-white text-amber-700 border-white font-black' : 'border-gray-500 bg-charcoal-900'
+                                      }`}
+                                    >
+                                      {isSelected ? '●' : ''}
+                                    </div>
+                                    <span>{addon.name.replace(/^(Espeto|Sabor):\s*/i, '')}</span>
+                                  </div>
+                                  <span
+                                    className={`font-mono text-xs font-bold ${
+                                      isSelected ? 'text-white' : addon.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'
+                                    }`}
+                                  >
+                                    {addon.price_cents > 0 ? `+${formatBRL(addon.price_cents)}` : 'Incluso'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-2 pt-2 border-t border-gray-800">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-gray-200 block">
+                            {activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')
+                              ? '🍧 Escolha seus Complementos (preço por item):'
+                              : activeModalProduct.name.toLowerCase().includes('jantinha')
+                              ? '🍽️ Escolha o Espeto & Acompanhamentos:'
+                              : '✨ Opções & Personalização:'}
+                          </label>
+                          <span className="text-[10px] text-gray-400 font-mono">
+                            {modalSelectedAddons.length} selecionado(s)
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {activeModalProduct.addons.map((addon) => {
+                            const isSelected = modalSelectedAddons.some((a) => a.name === addon.name);
+                            return (
+                              <div
+                                key={addon.id}
+                                onClick={() => handleToggleAddon(addon)}
+                                className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
+                                  isSelected
+                                    ? 'bg-purple-950/70 border-purple-500 text-white shadow font-semibold'
+                                    : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isSelected ? 'bg-purple-500 border-purple-400 text-white' : 'border-gray-600 bg-charcoal-900'}`}>
+                                    {isSelected ? '✓' : ''}
+                                  </div>
+                                  <span>{addon.name}</span>
+                                </div>
+                                <span className={`font-mono text-xs font-bold ${isSelected ? 'text-amber-300' : addon.price_cents > 0 ? 'text-amber-400' : 'text-gray-400'}`}>
+                                  {addon.price_cents > 0 ? `+${formatBRL(addon.price_cents)}` : 'Incluso'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Special notes */}
+                  <div className="space-y-1.5 pt-2 border-t border-gray-800">
+                    <label className="text-xs font-semibold text-gray-400 block">
+                      Observações para a Cozinha (opcional):
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')
+                          ? 'Ex: Leite condensado no fundo, sem banana...'
+                          : 'Ex: Ao ponto, sem vinagrete, pouco sal...'
+                      }
+                      value={modalNotes}
+                      onChange={(e) => setModalNotes(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-charcoal-800 border border-gray-700 text-xs text-white focus:outline-none focus:border-purple-500"
+                    />
+
+                    {/* Sugestões rápidas de observações */}
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {(activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')) ? (
+                        ['Sem banana', 'Ninho no fundo', 'Caprichar na calda', 'Pouco doce'].map((sug) => (
+                          <button
+                            key={sug}
+                            type="button"
+                            onClick={() => setModalNotes((prev) => prev ? `${prev}, ${sug}` : sug)}
+                            className="text-[10px] px-2 py-0.5 rounded bg-charcoal-800 border border-gray-700 hover:border-purple-500 text-gray-300 hover:text-white transition"
+                          >
+                            +{sug}
+                          </button>
+                        ))
+                      ) : (
+                        ['Ao ponto', 'Bem passado', 'Pouco sal', 'Sem vinagrete', 'Sem farofa'].map((sug) => (
+                          <button
+                            key={sug}
+                            type="button"
+                            onClick={() => setModalNotes((prev) => prev ? `${prev}, ${sug}` : sug)}
+                            className="text-[10px] px-2 py-0.5 rounded bg-charcoal-800 border border-gray-700 hover:border-purple-500 text-gray-300 hover:text-white transition"
+                          >
+                            +{sug}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quantity selector & Add Button */}
+                  <div className="pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
+                    <div className="space-y-0.5 pr-2">
+                      <span className="text-xs font-bold text-gray-300">Quantidade:</span>
+                      {activeModalProduct.addon_selection_mode === 'single' ||
+                      activeModalProduct.name.toLowerCase().includes('catupiry') ||
+                      activeModalProduct.name.toLowerCase().includes('caipirinha') ? (
+                        <p className="text-[10px] text-amber-400/90 leading-tight">
+                          {modalQuantity === 1
+                            ? 'Dica: para sabores variados, adicione 1 por vez!'
+                            : `⚠️ ${modalQuantity} unidades com o MESMO sabor (${modalSelectedAddons[0]?.name.replace(/^(Espeto|Sabor):\s*/i, '') || 'selecionado'}).`}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2 bg-charcoal-800 border border-gray-700 rounded-xl p-1">
+                      <button
+                        type="button"
+                        onClick={() => setModalQuantity((q) => Math.max(1, q - 1))}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-white"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="font-mono font-bold text-sm text-white px-2">
+                        {modalQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setModalQuantity((q) => q + 1)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-white"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Bottom Button */}
+                <div className="p-4 bg-charcoal-850 border-t border-gray-800">
+                  <button
+                    type="button"
+                    onClick={handleAddToCart}
+                    className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs shadow-lg shadow-purple-600/30 transition flex items-center justify-between"
+                  >
+                    <span>
+                      {flavorStepCount > 1
+                        ? `Adicionar ${flavorStepCount}º Item à Sacola`
+                        : 'Adicionar à Sacola'}
+                    </span>
+                    <span className="font-mono font-bold">
+                      {formatBRL(
+                        (activeModalProduct.price_cents +
+                          modalSelectedAddons.reduce((acc, a) => acc + a.price_cents, 0)) *
+                          modalQuantity
+                      )}
+                    </span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body

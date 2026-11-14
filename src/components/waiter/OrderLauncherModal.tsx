@@ -11,6 +11,7 @@ import {
   UtensilsCrossed,
   Flame,
   CheckCircle2,
+  Check,
   Trash2,
   AlertCircle,
   ShoppingBag,
@@ -60,6 +61,15 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
   const [tempAddons, setTempAddons] = useState<{ name: string; price_cents: number }[]>([]);
   const [tempNotes, setTempNotes] = useState<string>('');
 
+  // Follow-up pós-adição para itens de escolha única (1 sabor por item)
+  const [singleChoiceFollowUp, setSingleChoiceFollowUp] = useState<{
+    product: Product;
+    lastAddonName: string;
+    countAdded: number;
+    stepNumber: number;
+  } | null>(null);
+  const [flavorStepCount, setFlavorStepCount] = useState<number>(1);
+
   if (!isOpen) return null;
 
   const currentCategoryProducts = products.filter(
@@ -74,6 +84,8 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
   const handleOpenCustomize = (product: Product) => {
     setAddonProduct(product);
+    setSingleChoiceFollowUp(null);
+    setFlavorStepCount(1);
     const isJantinha = product.category_id === 'b5' || product.name.toLowerCase().includes('jantinha');
     const isMilkShake = product.category_id === 'b7' || product.name.toLowerCase().includes('milk');
     const isDrink = product.category_id === 'b8' || product.name.toLowerCase().includes('copão') || product.name.toLowerCase().includes('copao') || product.name.toLowerCase().includes('drink') || product.name.toLowerCase().includes('alcoólico');
@@ -141,15 +153,72 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
   const handleConfirmCustomAddon = () => {
     if (!addonProduct) return;
+
+    const isSingleChoice =
+      addonProduct.addon_selection_mode === 'single' ||
+      addonProduct.name.toLowerCase().includes('catupiry') ||
+      addonProduct.name.toLowerCase().includes('caipirinha');
+
+    const selectedFlavor = tempAddons[0]?.name.replace(/^(Espeto|Sabor):\s*/i, '') || 'Opção selecionada';
+    const currentProduct = addonProduct;
+    const currentAddons = [...tempAddons];
+    const currentNotes = tempNotes;
+    const currentStep = flavorStepCount;
+
     setDraftItems((prev) => [
       ...prev,
       {
-        product: addonProduct,
+        product: currentProduct,
         quantity: 1,
-        selectedAddons: tempAddons,
-        notes: tempNotes,
+        selectedAddons: currentAddons,
+        notes: currentNotes,
       },
     ]);
+
+    // Se for produto com escolha única (ex: Catupiry, Caipirinha), exibe opção para adicionar outro sabor
+    if (isSingleChoice) {
+      setSingleChoiceFollowUp({
+        product: currentProduct,
+        lastAddonName: selectedFlavor,
+        countAdded: 1,
+        stepNumber: currentStep,
+      });
+      return;
+    }
+
+    setAddonProduct(null);
+  };
+
+  // Follow-up Garçom: Escolher outro sabor para o próximo espetinho / bebida
+  const handlePickAnotherFlavor = () => {
+    if (!singleChoiceFollowUp) return;
+    setFlavorStepCount((prev) => prev + 1);
+    setTempAddons([]);
+    setTempNotes('');
+    setSingleChoiceFollowUp(null);
+  };
+
+  // Follow-up Garçom: Manter o mesmo sabor (+1)
+  const handleRepeatSameFlavor = () => {
+    if (!singleChoiceFollowUp) return;
+    const { product } = singleChoiceFollowUp;
+    setDraftItems((prev) => {
+      const lastIndex = prev.length - 1;
+      if (lastIndex >= 0 && prev[lastIndex].product.id === product.id) {
+        return prev.map((item, idx) =>
+          idx === lastIndex ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return prev;
+    });
+    setSingleChoiceFollowUp((prev) =>
+      prev ? { ...prev, countAdded: prev.countAdded + 1 } : null
+    );
+  };
+
+  // Follow-up Garçom: Concluir e fechar
+  const handleFinishFollowUp = () => {
+    setSingleChoiceFollowUp(null);
     setAddonProduct(null);
   };
 
@@ -561,12 +630,101 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                 </div>
               </div>
               <button
-                onClick={() => setAddonProduct(null)}
+                onClick={() => {
+                  setSingleChoiceFollowUp(null);
+                  setAddonProduct(null);
+                }}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {singleChoiceFollowUp ? (
+              /* TELA DE DECISÃO: ESCOLHER OUTRO SABOR OU MANTER O MESMO */
+              <div className="space-y-4 py-2">
+                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/50 flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-white">
+                      {singleChoiceFollowUp.product.name} Adicionado!
+                    </h4>
+                    <p className="text-xs text-emerald-300 font-bold mt-0.5">
+                      Sabor escolhido: <span className="text-white underline">{singleChoiceFollowUp.lastAddonName}</span>
+                    </p>
+                    <p className="text-[11px] text-gray-300 mt-1">
+                      {singleChoiceFollowUp.countAdded > 1
+                        ? `${singleChoiceFollowUp.countAdded} unidades deste sabor no pedido da comanda.`
+                        : '1 unidade adicionada à comanda.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-charcoal-800 border border-amber-500/40 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-300 font-extrabold text-xs uppercase tracking-wide">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Deseja adicionar mais um {singleChoiceFollowUp.product.name.toLowerCase().includes('caipirinha') ? 'copo' : 'espeto'}?</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Opção 1: Escolher outro sabor */}
+                    <button
+                      type="button"
+                      onClick={handlePickAnotherFlavor}
+                      className="w-full py-3 px-3.5 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-white font-extrabold text-xs flex items-center justify-between shadow-lg shadow-amber-600/30 transition active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                        <span>Escolher OUTRO sabor (para o próximo)</span>
+                      </div>
+                      <span className="text-[11px] bg-black/30 px-2 py-0.5 rounded font-mono font-bold">
+                        +{formatBRL(singleChoiceFollowUp.product.price_cents)}
+                      </span>
+                    </button>
+
+                    {/* Opção 2: Manter o mesmo sabor */}
+                    <button
+                      type="button"
+                      onClick={handleRepeatSameFlavor}
+                      className="w-full py-3 px-3.5 rounded-xl bg-charcoal-700 hover:bg-gray-700 border border-gray-600 text-gray-100 font-bold text-xs flex items-center justify-between transition active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-2 text-left truncate">
+                        <span className="text-base">🔁</span>
+                        <span className="truncate">Manter o MESMO sabor (+1 {singleChoiceFollowUp.lastAddonName})</span>
+                      </div>
+                      <span className="text-[11px] bg-charcoal-900 px-2 py-0.5 rounded font-mono text-gray-300 font-bold">
+                        +{formatBRL(singleChoiceFollowUp.product.price_cents)}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleFinishFollowUp}
+                    className="w-full py-2.5 rounded-xl bg-charcoal-800 hover:bg-charcoal-700 text-gray-300 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-gray-700 transition"
+                  >
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>Concluir e ver Pedido ({draftItems.length} {draftItems.length === 1 ? 'item' : 'itens'})</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {flavorStepCount > 1 && (
+                  <div className="p-2.5 bg-amber-950/40 border border-amber-500/50 rounded-xl text-amber-200 text-xs flex items-center justify-between">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span>🍢</span>
+                      <span>{flavorStepCount}º Espeto • Escolha o próximo sabor:</span>
+                    </span>
+                    <span className="text-[10px] bg-amber-600 text-white font-mono font-bold px-2 py-0.5 rounded">
+                      1 Incluso
+                    </span>
+                  </div>
+                )}
 
             {/* Addons list */}
             {addonProduct.addons && addonProduct.addons.length > 0 && (() => {
@@ -1090,8 +1248,12 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
               className="w-full py-3 rounded-xl bg-gradient-to-r from-ember-600 via-ember-500 to-amber-500 hover:from-ember-500 text-white font-extrabold text-sm shadow-lg shadow-ember-600/30 transition flex items-center justify-center gap-2 mt-2"
             >
               <Plus className="w-4 h-4" />
-              <span>Adicionar ao Pedido • {formatBRL(addonProduct.price_cents + tempAddons.reduce((sum, a) => sum + a.price_cents, 0))}</span>
+              <span>
+                {flavorStepCount > 1 ? `Adicionar ${flavorStepCount}º Espeto` : 'Adicionar ao Pedido'} • {formatBRL(addonProduct.price_cents + tempAddons.reduce((sum, a) => sum + a.price_cents, 0))}
+              </span>
             </button>
+              </>
+            )}
           </div>
         </div>
       )}
