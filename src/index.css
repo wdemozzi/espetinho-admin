@@ -33,3 +33,66 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #8b5cf6;
 }
+
+/* ==========================================================================
+   Estilos de Impressão Térmica (MP58C7 / 58mm / 80mm POS)
+   ========================================================================== */
+@page {
+  margin: 0mm !important;
+  size: auto;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+
+  /* Oculta tudo que não faz parte do cupom */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Oculta modais, botões, barras de navegação e controles */
+  .no-print,
+  button,
+  input,
+  header,
+  nav,
+  aside,
+  [role="dialog"] > div:first-child,
+  .backdrop-blur-md,
+  .bg-black\/85 {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Exibe exclusivamente o cupom térmico se a impressão for disparada direto da janela */
+  #thermal-receipt-printable,
+  #thermal-receipt-printable * {
+    visibility: visible !important;
+  }
+
+  #thermal-receipt-printable {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 48mm !important;
+    max-width: 48mm !important;
+    margin: 0 !important;
+    padding: 1.5mm 1mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+}
+

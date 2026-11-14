@@ -1,0 +1,452 @@
+import { formatBRL } from './currency';
+
+export type PaperWidth = '58mm' | '80mm';
+
+export interface ThermalReceiptItem {
+  name: string;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents: number;
+  addons?: string[];
+  notes?: string[];
+}
+
+export interface ThermalReceiptData {
+  establishmentName: string;
+  establishmentDescription?: string;
+  establishmentPhone?: string;
+  establishmentAddress?: string;
+  tableName?: string;
+  customerName?: string;
+  tabCode?: string;
+  dateTime?: Date | string;
+  items: ThermalReceiptItem[];
+  subtotalCents: number;
+  serviceFeeCents?: number;
+  serviceFeePercent?: number;
+  discountCents?: number;
+  finalTotalCents: number;
+  paidCents?: number;
+  remainingDueCents?: number;
+  paperWidth?: PaperWidth;
+  footerMessage?: string;
+}
+
+const STORAGE_KEY_PAPER_WIDTH = 'ct_thermal_paper_width';
+
+export function getStoredPaperWidth(): PaperWidth {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PAPER_WIDTH);
+    if (saved === '80mm' || saved === '58mm') return saved;
+  } catch {
+    // fallback
+  }
+  return '58mm';
+}
+
+export function setStoredPaperWidth(width: PaperWidth): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_PAPER_WIDTH, width);
+  } catch {
+    // fallback
+  }
+}
+
+/**
+ * Formata cupom em texto puro monoespaçado (ideal para WhatsApp, Bluetooth RAW ou visualização)
+ */
+export function formatReceiptAsPlainText(data: ThermalReceiptData): string {
+  const is58mm = (data.paperWidth || getStoredPaperWidth()) === '58mm';
+  const cols = is58mm ? 32 : 44;
+  const divider = '-'.repeat(cols);
+  const doubleDivider = '='.repeat(cols);
+
+  const padBoth = (str: string, width: number) => {
+    const s = str.slice(0, width);
+    const pad = Math.max(0, width - s.length);
+    const left = Math.floor(pad / 2);
+    const right = pad - left;
+    return ' '.repeat(left) + s + ' '.repeat(right);
+  };
+
+  const padRow = (left: string, right: string, width: number) => {
+    const maxLeft = width - right.length - 1;
+    const l = left.length > maxLeft ? left.slice(0, maxLeft) : left;
+    const spaces = Math.max(1, width - l.length - right.length);
+    return l + ' '.repeat(spaces) + right;
+  };
+
+  const lines: string[] = [];
+
+  // Cabeçalho
+  lines.push(padBoth(data.establishmentName.toUpperCase(), cols));
+  if (data.establishmentDescription) lines.push(padBoth(data.establishmentDescription, cols));
+  if (data.establishmentPhone) lines.push(padBoth(`Tel: ${data.establishmentPhone}`, cols));
+  if (data.establishmentAddress) lines.push(padBoth(data.establishmentAddress, cols));
+
+  const dt = data.dateTime ? new Date(data.dateTime) : new Date();
+  const dateStr = dt.toLocaleDateString('pt-BR');
+  const timeStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  lines.push(padRow(dateStr, timeStr, cols));
+  lines.push(divider);
+
+  // Metadados da Comanda / Mesa
+  const tableOrBalcao = data.tableName || 'Balcão';
+  const client = data.customerName ? `Cli: ${data.customerName}` : '';
+  lines.push(padRow(tableOrBalcao, client, cols));
+  if (data.tabCode) {
+    lines.push(`Comanda: #${data.tabCode.slice(-6)}`);
+  }
+  lines.push(doubleDivider);
+
+  // Itens
+  lines.push(padRow('ITEM', 'TOTAL', cols));
+  lines.push(divider);
+
+  data.items.forEach((it) => {
+    const itemHeader = `${it.quantity}x ${it.name}`;
+    const priceStr = formatBRL(it.total_cents);
+    lines.push(padRow(itemHeader, priceStr, cols));
+
+    if (it.addons && it.addons.length > 0) {
+      it.addons.forEach((ad) => {
+        lines.push(`  + ${ad}`);
+      });
+    }
+
+    if (it.notes && it.notes.length > 0) {
+      it.notes.forEach((n) => {
+        if (n.trim()) lines.push(`  Obs: ${n.trim()}`);
+      });
+    }
+  });
+
+  lines.push(divider);
+
+  // Subtotais e Totais
+  lines.push(padRow('Subtotal Consumo:', formatBRL(data.subtotalCents), cols));
+
+  if (data.serviceFeeCents && data.serviceFeeCents > 0) {
+    const feePct = data.serviceFeePercent ? ` (${data.serviceFeePercent}%)` : '';
+    lines.push(padRow(`Taxa de Servico${feePct}:`, `+${formatBRL(data.serviceFeeCents)}`, cols));
+  }
+
+  if (data.discountCents && data.discountCents > 0) {
+    lines.push(padRow('Desconto:', `-${formatBRL(data.discountCents)}`, cols));
+  }
+
+  lines.push(doubleDivider);
+  lines.push(padRow('TOTAL A PAGAR:', formatBRL(data.finalTotalCents), cols));
+
+  if (data.paidCents && data.paidCents > 0) {
+    lines.push(padRow('Valor Ja Pago:', formatBRL(data.paidCents), cols));
+  }
+  if (data.remainingDueCents !== undefined && data.remainingDueCents > 0) {
+    lines.push(padRow('SALDO RESTANTE:', formatBRL(data.remainingDueCents), cols));
+  }
+
+  lines.push(doubleDivider);
+  lines.push(padBoth('*** DOCUMENTO DE CONFERENCIA ***', cols));
+  lines.push(padBoth('NAO E DOCUMENTO FISCAL', cols));
+  lines.push(divider);
+  lines.push(padBoth(data.footerMessage || 'OBRIGADO PELA PREFERENCIA! 🍻', cols));
+
+  return lines.join('\n');
+}
+
+/**
+ * Constrói o HTML puro para impressão na impressora térmica
+ */
+export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
+  const paperWidth = data.paperWidth || getStoredPaperWidth();
+  const is58mm = paperWidth === '58mm';
+  const printableWidthMm = is58mm ? '48mm' : '72mm';
+  const fontSizePx = is58mm ? '11px' : '12.5px';
+
+  const dt = data.dateTime ? new Date(data.dateTime) : new Date();
+  const dateStr = dt.toLocaleDateString('pt-BR');
+  const timeStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  const itemsHtml = data.items
+    .map((it) => {
+      const addonsHtml =
+        it.addons && it.addons.length > 0
+          ? it.addons
+              .map(
+                (ad) =>
+                  `<div style="font-size: 9.5px; color: #222; padding-left: 10px; line-height: 1.2;">+ ${escapeHtml(ad)}</div>`
+              )
+              .join('')
+          : '';
+
+      const notesHtml =
+        it.notes && it.notes.length > 0
+          ? it.notes
+              .filter((n) => n && n.trim())
+              .map(
+                (n) =>
+                  `<div style="font-size: 9px; color: #444; padding-left: 10px; font-style: italic; line-height: 1.2;">Obs: ${escapeHtml(n)}</div>`
+              )
+              .join('')
+          : '';
+
+      return `
+        <div style="margin-bottom: 3.5px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+            <div style="font-weight: 700; flex: 1; word-break: break-word; line-height: 1.2;">
+              ${it.quantity}x ${escapeHtml(it.name)}
+            </div>
+            <div style="font-weight: 700; white-space: nowrap; flex-shrink: 0;">
+              ${formatBRL(it.total_cents)}
+            </div>
+          </div>
+          ${addonsHtml}
+          ${notesHtml}
+        </div>
+      `;
+    })
+    .join('');
+
+  return `
+    <div class="thermal-receipt-container" style="
+      width: ${printableWidthMm};
+      max-width: ${printableWidthMm};
+      margin: 0 auto;
+      padding: 1.5mm 1mm;
+      box-sizing: border-box;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: ${fontSizePx};
+      line-height: 1.25;
+      color: #000000;
+      background: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    ">
+      <!-- Cabeçalho Estabelecimento -->
+      <div style="text-align: center; margin-bottom: 4px;">
+        <div style="font-size: 13px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
+          ${escapeHtml(data.establishmentName)}
+        </div>
+        ${
+          data.establishmentDescription
+            ? `<div style="font-size: 9.5px; color: #333; margin-top: 1px;">${escapeHtml(data.establishmentDescription)}</div>`
+            : ''
+        }
+        ${
+          data.establishmentPhone
+            ? `<div style="font-size: 10px; font-weight: 700; margin-top: 1px;">Tel: ${escapeHtml(data.establishmentPhone)}</div>`
+            : ''
+        }
+        ${
+          data.establishmentAddress
+            ? `<div style="font-size: 9.5px; color: #333;">${escapeHtml(data.establishmentAddress)}</div>`
+            : ''
+        }
+      </div>
+
+      <!-- Data e Hora -->
+      <div style="display: flex; justify-content: space-between; font-size: 10px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2.5px 0; margin: 4px 0;">
+        <span>${dateStr}</span>
+        <span>${timeStr}</span>
+      </div>
+
+      <!-- Identificação Mesa / Comanda -->
+      <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-bottom: 2px;">
+        <span>${escapeHtml(data.tableName || 'Balcão')}</span>
+        <span>${data.customerName ? `Cli: ${escapeHtml(data.customerName)}` : ''}</span>
+      </div>
+      ${
+        data.tabCode
+          ? `<div style="font-size: 9.5px; color: #333; margin-bottom: 4px;">Comanda: #${escapeHtml(data.tabCode.slice(-6))}</div>`
+          : ''
+      }
+
+      <!-- Separador Duplo -->
+      <div style="border-top: 2px solid #000; margin: 4px 0 3px 0;"></div>
+
+      <!-- Cabeçalho Tabela Itens -->
+      <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 800; text-transform: uppercase; border-bottom: 1px dashed #000; padding-bottom: 2px; margin-bottom: 4px;">
+        <span>ITEM / PRODUTO</span>
+        <span>TOTAL</span>
+      </div>
+
+      <!-- Lista de Itens -->
+      <div style="margin-bottom: 4px;">
+        ${itemsHtml}
+      </div>
+
+      <!-- Linha Separadora -->
+      <div style="border-top: 1px dashed #000; margin: 5px 0 4px 0;"></div>
+
+      <!-- Subtotal, Taxa de Serviço e Desconto -->
+      <div style="font-size: ${fontSizePx}; line-height: 1.35;">
+        <div style="display: flex; justify-content: space-between;">
+          <span>Subtotal Consumo:</span>
+          <span style="font-weight: 700;">${formatBRL(data.subtotalCents)}</span>
+        </div>
+
+        ${
+          data.serviceFeeCents && data.serviceFeeCents > 0
+            ? `
+          <div style="display: flex; justify-content: space-between;">
+            <span>Taxa Serviço (${data.serviceFeePercent || 10}%):</span>
+            <span style="font-weight: 700;">+${formatBRL(data.serviceFeeCents)}</span>
+          </div>`
+            : ''
+        }
+
+        ${
+          data.discountCents && data.discountCents > 0
+            ? `
+          <div style="display: flex; justify-content: space-between;">
+            <span>Desconto:</span>
+            <span style="font-weight: 700;">-${formatBRL(data.discountCents)}</span>
+          </div>`
+            : ''
+        }
+
+        <!-- TOTAL GERAL EM DESTAQUE -->
+        <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 5px 0; padding: 3px 0; display: flex; justify-content: space-between; font-size: ${is58mm ? '13px' : '14px'}; font-weight: 900;">
+          <span>TOTAL A PAGAR:</span>
+          <span>${formatBRL(data.finalTotalCents)}</span>
+        </div>
+
+        ${
+          data.paidCents && data.paidCents > 0
+            ? `
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #444;">
+            <span>Valor Já Pago:</span>
+            <span>${formatBRL(data.paidCents)}</span>
+          </div>`
+            : ''
+        }
+
+        ${
+          data.remainingDueCents !== undefined && data.remainingDueCents > 0
+            ? `
+          <div style="display: flex; justify-content: space-between; font-weight: 900; margin-top: 2px;">
+            <span>SALDO RESTANTE:</span>
+            <span>${formatBRL(data.remainingDueCents)}</span>
+          </div>`
+            : ''
+        }
+      </div>
+
+      <!-- Rodapé Fiscal / Documento -->
+      <div style="border-top: 1px dashed #000; margin-top: 6px; padding-top: 4px; text-align: center; font-size: 9.5px; color: #333; line-height: 1.3;">
+        <div style="font-weight: 800;">*** DOCUMENTO DE CONFERÊNCIA ***</div>
+        <div>NÃO É DOCUMENTO FISCAL</div>
+        <div style="margin-top: 4px; font-weight: 700;">
+          ${escapeHtml(data.footerMessage || 'Agradecemos a preferência! 🍻')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Dispara a impressão na impressora térmica através de um IFrame isolado (sem interferência de modais, estilos da página ou botões)
+ */
+export function printThermalReceipt(data: ThermalReceiptData): void {
+  const paperWidth = data.paperWidth || getStoredPaperWidth();
+  const is58mm = paperWidth === '58mm';
+  const printableWidthMm = is58mm ? '48mm' : '72mm';
+  const paperSizeRule = is58mm ? '58mm auto' : '80mm auto';
+
+  const htmlBody = buildThermalReceiptHtml(data);
+
+  // Remove iframe anterior se existir
+  const existingIframe = document.getElementById('thermal-print-iframe');
+  if (existingIframe) {
+    existingIframe.remove();
+  }
+
+  // Cria iframe invisível
+  const iframe = document.createElement('iframe');
+  iframe.id = 'thermal-print-iframe';
+  iframe.setAttribute(
+    'style',
+    'position: fixed; right: -9999px; bottom: -9999px; width: 0; height: 0; border: 0; overflow: hidden;'
+  );
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    // Fallback: abre popup se o iframe não estiver acessível
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
+    if (printWindow) {
+      printWindow.document.write(renderFullHtmlPage(htmlBody, paperSizeRule, printableWidthMm));
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 350);
+    }
+    return;
+  }
+
+  doc.open();
+  doc.write(renderFullHtmlPage(htmlBody, paperSizeRule, printableWidthMm));
+  doc.close();
+
+  // Executa impressão após o carregamento do documento
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (err) {
+      console.error('[ThermalPrinter] Erro ao disparar print no iframe:', err);
+    }
+  }, 250);
+}
+
+function renderFullHtmlPage(htmlBody: string, paperSizeRule: string, printableWidthMm: string): string {
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>Cupom de Conferência</title>
+        <style>
+          @page {
+            size: ${paperSizeRule};
+            margin: 0mm !important;
+          }
+          @media print {
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              width: ${printableWidthMm} !important;
+            }
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            color: #000000;
+          }
+        </style>
+      </head>
+      <body>
+        ${htmlBody}
+      </body>
+    </html>
+  `;
+}
+
+function escapeHtml(str: string): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
