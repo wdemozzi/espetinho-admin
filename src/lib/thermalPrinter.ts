@@ -1,6 +1,6 @@
 import { formatBRL } from './currency';
 
-export type PaperWidth = '58mm' | '80mm';
+export type PaperWidth = '58mm' | '58mm-wide' | '80mm';
 
 export interface ThermalReceiptItem {
   name: string;
@@ -37,7 +37,7 @@ const STORAGE_KEY_PAPER_WIDTH = 'ct_thermal_paper_width';
 export function getStoredPaperWidth(): PaperWidth {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_PAPER_WIDTH);
-    if (saved === '80mm' || saved === '58mm') return saved;
+    if (saved === '80mm' || saved === '58mm-wide' || saved === '58mm') return saved as PaperWidth;
   } catch {
     // fallback
   }
@@ -56,8 +56,8 @@ export function setStoredPaperWidth(width: PaperWidth): void {
  * Formata cupom em texto puro monoespaçado (ideal para WhatsApp, Bluetooth RAW ou visualização)
  */
 export function formatReceiptAsPlainText(data: ThermalReceiptData): string {
-  const is58mm = (data.paperWidth || getStoredPaperWidth()) === '58mm';
-  const cols = is58mm ? 32 : 44;
+  const widthMode = data.paperWidth || getStoredPaperWidth();
+  const cols = widthMode === '80mm' ? 42 : (widthMode === '58mm-wide' ? 32 : 30);
   const divider = '-'.repeat(cols);
   const doubleDivider = '='.repeat(cols);
 
@@ -128,7 +128,7 @@ export function formatReceiptAsPlainText(data: ThermalReceiptData): string {
 
   if (data.serviceFeeCents && data.serviceFeeCents > 0) {
     const feePct = data.serviceFeePercent ? ` (${data.serviceFeePercent}%)` : '';
-    lines.push(padRow(`Taxa de Servico${feePct}:`, `+${formatBRL(data.serviceFeeCents)}`, cols));
+    lines.push(padRow(`Taxa Servico${feePct}:`, `+${formatBRL(data.serviceFeeCents)}`, cols));
   }
 
   if (data.discountCents && data.discountCents > 0) {
@@ -156,12 +156,17 @@ export function formatReceiptAsPlainText(data: ThermalReceiptData): string {
 
 /**
  * Constrói o HTML puro para impressão na impressora térmica
+ * Largura calibrada milimetricamente para evitar cortes na margem direita de mini impressoras 58mm como a MP58C7
  */
 export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
-  const paperWidth = data.paperWidth || getStoredPaperWidth();
-  const is58mm = paperWidth === '58mm';
-  const printableWidthMm = is58mm ? '48mm' : '72mm';
-  const fontSizePx = is58mm ? '11px' : '12.5px';
+  const widthMode = data.paperWidth || getStoredPaperWidth();
+  
+  // 58mm (MP58C7): 42mm de área de impressão + 2.5mm de margem de segurança à direita
+  // 58mm-wide: 46mm de área de impressão
+  // 80mm: 70mm de área de impressão
+  const printableWidthMm = widthMode === '80mm' ? '70mm' : (widthMode === '58mm-wide' ? '46mm' : '42mm');
+  const fontSizePx = widthMode === '80mm' ? '12px' : (widthMode === '58mm-wide' ? '10.5px' : '10px');
+  const rightPaddingMm = widthMode === '80mm' ? '2mm' : (widthMode === '58mm-wide' ? '1.5mm' : '2.5mm');
 
   const dt = data.dateTime ? new Date(data.dateTime) : new Date();
   const dateStr = dt.toLocaleDateString('pt-BR');
@@ -174,7 +179,7 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
           ? it.addons
               .map(
                 (ad) =>
-                  `<div style="font-size: 9.5px; color: #222; padding-left: 10px; line-height: 1.2;">+ ${escapeHtml(ad)}</div>`
+                  `<div style="font-size: 8.5px; color: #222; padding-left: 6px; line-height: 1.15; margin-top: 1px;">+ ${escapeHtml(ad)}</div>`
               )
               .join('')
           : '';
@@ -185,18 +190,18 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
               .filter((n) => n && n.trim())
               .map(
                 (n) =>
-                  `<div style="font-size: 9px; color: #444; padding-left: 10px; font-style: italic; line-height: 1.2;">Obs: ${escapeHtml(n)}</div>`
+                  `<div style="font-size: 8px; color: #444; padding-left: 6px; font-style: italic; line-height: 1.15; margin-top: 1px;">Obs: ${escapeHtml(n)}</div>`
               )
               .join('')
           : '';
 
       return `
-        <div style="margin-bottom: 3.5px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+        <div style="margin-bottom: 3px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 3px;">
             <div style="font-weight: 700; flex: 1; word-break: break-word; line-height: 1.2;">
               ${it.quantity}x ${escapeHtml(it.name)}
             </div>
-            <div style="font-weight: 700; white-space: nowrap; flex-shrink: 0;">
+            <div style="font-weight: 800; white-space: nowrap; flex-shrink: 0; padding-left: 4px;">
               ${formatBRL(it.total_cents)}
             </div>
           </div>
@@ -211,74 +216,74 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
     <div class="thermal-receipt-container" style="
       width: ${printableWidthMm};
       max-width: ${printableWidthMm};
-      margin: 0 auto;
-      padding: 1.5mm 1mm;
+      margin: 0;
+      padding: 1mm ${rightPaddingMm} 1mm 0.5mm;
       box-sizing: border-box;
       font-family: 'Courier New', Courier, monospace;
       font-size: ${fontSizePx};
-      line-height: 1.25;
+      line-height: 1.22;
       color: #000000;
       background: #ffffff;
       -webkit-font-smoothing: antialiased;
     ">
       <!-- Cabeçalho Estabelecimento -->
-      <div style="text-align: center; margin-bottom: 4px;">
-        <div style="font-size: 13px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
+      <div style="text-align: center; margin-bottom: 3px;">
+        <div style="font-size: 11.5px; font-weight: 900; letter-spacing: 0.2px; text-transform: uppercase; line-height: 1.15;">
           ${escapeHtml(data.establishmentName)}
         </div>
         ${
           data.establishmentDescription
-            ? `<div style="font-size: 9.5px; color: #333; margin-top: 1px;">${escapeHtml(data.establishmentDescription)}</div>`
+            ? `<div style="font-size: 8.5px; color: #333; margin-top: 1px; line-height: 1.15;">${escapeHtml(data.establishmentDescription)}</div>`
             : ''
         }
         ${
           data.establishmentPhone
-            ? `<div style="font-size: 10px; font-weight: 700; margin-top: 1px;">Tel: ${escapeHtml(data.establishmentPhone)}</div>`
+            ? `<div style="font-size: 9px; font-weight: 700; margin-top: 1px;">Tel: ${escapeHtml(data.establishmentPhone)}</div>`
             : ''
         }
         ${
           data.establishmentAddress
-            ? `<div style="font-size: 9.5px; color: #333;">${escapeHtml(data.establishmentAddress)}</div>`
+            ? `<div style="font-size: 8.5px; color: #333; line-height: 1.15;">${escapeHtml(data.establishmentAddress)}</div>`
             : ''
         }
       </div>
 
       <!-- Data e Hora -->
-      <div style="display: flex; justify-content: space-between; font-size: 10px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2.5px 0; margin: 4px 0;">
+      <div style="display: flex; justify-content: space-between; font-size: 9px; font-weight: 700; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 2px 0; margin: 3.5px 0;">
         <span>${dateStr}</span>
         <span>${timeStr}</span>
       </div>
 
       <!-- Identificação Mesa / Comanda -->
-      <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-bottom: 2px;">
+      <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 800; margin-bottom: 1px;">
         <span>${escapeHtml(data.tableName || 'Balcão')}</span>
         <span>${data.customerName ? `Cli: ${escapeHtml(data.customerName)}` : ''}</span>
       </div>
       ${
         data.tabCode
-          ? `<div style="font-size: 9.5px; color: #333; margin-bottom: 4px;">Comanda: #${escapeHtml(data.tabCode.slice(-6))}</div>`
+          ? `<div style="font-size: 8.5px; color: #333; margin-bottom: 3px;">Comanda: #${escapeHtml(data.tabCode.slice(-6))}</div>`
           : ''
       }
 
       <!-- Separador Duplo -->
-      <div style="border-top: 2px solid #000; margin: 4px 0 3px 0;"></div>
+      <div style="border-top: 2px solid #000; margin: 3px 0 2.5px 0;"></div>
 
       <!-- Cabeçalho Tabela Itens -->
-      <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 800; text-transform: uppercase; border-bottom: 1px dashed #000; padding-bottom: 2px; margin-bottom: 4px;">
+      <div style="display: flex; justify-content: space-between; font-size: 8.5px; font-weight: 900; text-transform: uppercase; border-bottom: 1px dashed #000; padding-bottom: 1.5px; margin-bottom: 3px;">
         <span>ITEM / PRODUTO</span>
         <span>TOTAL</span>
       </div>
 
       <!-- Lista de Itens -->
-      <div style="margin-bottom: 4px;">
+      <div style="margin-bottom: 3px;">
         ${itemsHtml}
       </div>
 
       <!-- Linha Separadora -->
-      <div style="border-top: 1px dashed #000; margin: 5px 0 4px 0;"></div>
+      <div style="border-top: 1px dashed #000; margin: 4px 0 3px 0;"></div>
 
       <!-- Subtotal, Taxa de Serviço e Desconto -->
-      <div style="font-size: ${fontSizePx}; line-height: 1.35;">
+      <div style="font-size: ${fontSizePx}; line-height: 1.3;">
         <div style="display: flex; justify-content: space-between;">
           <span>Subtotal Consumo:</span>
           <span style="font-weight: 700;">${formatBRL(data.subtotalCents)}</span>
@@ -305,7 +310,7 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
         }
 
         <!-- TOTAL GERAL EM DESTAQUE -->
-        <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 5px 0; padding: 3px 0; display: flex; justify-content: space-between; font-size: ${is58mm ? '13px' : '14px'}; font-weight: 900;">
+        <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 4px 0; padding: 2px 0; display: flex; justify-content: space-between; font-size: ${widthMode === '80mm' ? '13px' : '11.5px'}; font-weight: 900;">
           <span>TOTAL A PAGAR:</span>
           <span>${formatBRL(data.finalTotalCents)}</span>
         </div>
@@ -313,7 +318,7 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
         ${
           data.paidCents && data.paidCents > 0
             ? `
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: #444;">
+          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #444;">
             <span>Valor Já Pago:</span>
             <span>${formatBRL(data.paidCents)}</span>
           </div>`
@@ -332,10 +337,10 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
       </div>
 
       <!-- Rodapé Fiscal / Documento -->
-      <div style="border-top: 1px dashed #000; margin-top: 6px; padding-top: 4px; text-align: center; font-size: 9.5px; color: #333; line-height: 1.3;">
+      <div style="border-top: 1px dashed #000; margin-top: 5px; padding-top: 3px; text-align: center; font-size: 8.5px; color: #333; line-height: 1.25;">
         <div style="font-weight: 800;">*** DOCUMENTO DE CONFERÊNCIA ***</div>
         <div>NÃO É DOCUMENTO FISCAL</div>
-        <div style="margin-top: 4px; font-weight: 700;">
+        <div style="margin-top: 3px; font-weight: 700; color: #000;">
           ${escapeHtml(data.footerMessage || 'Agradecemos a preferência! 🍻')}
         </div>
       </div>
@@ -344,13 +349,12 @@ export function buildThermalReceiptHtml(data: ThermalReceiptData): string {
 }
 
 /**
- * Dispara a impressão na impressora térmica através de um IFrame isolado (sem interferência de modais, estilos da página ou botões)
+ * Dispara a impressão na impressora térmica através de um IFrame isolado
  */
 export function printThermalReceipt(data: ThermalReceiptData): void {
-  const paperWidth = data.paperWidth || getStoredPaperWidth();
-  const is58mm = paperWidth === '58mm';
-  const printableWidthMm = is58mm ? '48mm' : '72mm';
-  const paperSizeRule = is58mm ? '58mm auto' : '80mm auto';
+  const widthMode = data.paperWidth || getStoredPaperWidth();
+  const printableWidthMm = widthMode === '80mm' ? '70mm' : (widthMode === '58mm-wide' ? '46mm' : '42mm');
+  const paperSizeRule = widthMode === '80mm' ? '80mm auto' : '58mm auto';
 
   const htmlBody = buildThermalReceiptHtml(data);
 
@@ -371,7 +375,6 @@ export function printThermalReceipt(data: ThermalReceiptData): void {
 
   const doc = iframe.contentWindow?.document;
   if (!doc) {
-    // Fallback: abre popup se o iframe não estiver acessível
     const printWindow = window.open('', '_blank', 'width=350,height=600');
     if (printWindow) {
       printWindow.document.write(renderFullHtmlPage(htmlBody, paperSizeRule, printableWidthMm));
@@ -389,7 +392,6 @@ export function printThermalReceipt(data: ThermalReceiptData): void {
   doc.write(renderFullHtmlPage(htmlBody, paperSizeRule, printableWidthMm));
   doc.close();
 
-  // Executa impressão após o carregamento do documento
   setTimeout(() => {
     try {
       iframe.contentWindow?.focus();
@@ -419,6 +421,7 @@ function renderFullHtmlPage(htmlBody: string, paperSizeRule: string, printableWi
               background: #ffffff !important;
               color: #000000 !important;
               width: ${printableWidthMm} !important;
+              max-width: ${printableWidthMm} !important;
             }
           }
           * {
@@ -427,10 +430,12 @@ function renderFullHtmlPage(htmlBody: string, paperSizeRule: string, printableWi
             print-color-adjust: exact;
           }
           html, body {
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #ffffff;
             color: #000000;
+            width: ${printableWidthMm};
+            max-width: ${printableWidthMm};
           }
         </style>
       </head>

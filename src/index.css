@@ -81,18 +81,18 @@ body {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
-    width: 48mm !important;
-    max-width: 48mm !important;
+    width: 42mm !important;
+    max-width: 42mm !important;
     margin: 0 !important;
-    padding: 1.5mm 1mm !important;
+    padding: 1mm 2.5mm 1mm 0.5mm !important;
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
     font-family: 'Courier New', Courier, monospace !important;
-    font-size: 11px !important;
-    line-height: 1.25 !important;
+    font-size: 10px !important;
+    line-height: 1.22 !important;
   }
 }
 

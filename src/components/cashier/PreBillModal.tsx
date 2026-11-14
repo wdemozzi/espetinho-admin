@@ -145,10 +145,10 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
         </div>
 
         {/* Barra de Ajuste de Bobina / Largura */}
-        <div className="px-4 py-2.5 bg-charcoal-950 border-b border-gray-800 flex items-center justify-between text-xs">
+        <div className="px-4 py-2.5 bg-charcoal-950 border-b border-gray-800 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-gray-400">
             <Sliders className="w-3.5 h-3.5 text-amber-400" />
-            <span>Formato da Bobina:</span>
+            <span>Largura da Bobina:</span>
           </div>
           <div className="inline-flex rounded-lg bg-charcoal-800 p-0.5 border border-gray-700">
             <button
@@ -159,19 +159,33 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
                   ? 'bg-amber-600 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
+              title="Calibrado para 42mm com recuo de segurança na margem direita (MP58C7)"
             >
-              <span>58mm (MP58C7 / Mini)</span>
+              <span>58mm Seguro (MP58C7)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectPaperWidth('58mm-wide')}
+              className={`px-2 py-1 rounded-md text-[11px] font-bold transition ${
+                paperWidth === '58mm-wide'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+              title="Largura de 46mm"
+            >
+              <span>58mm Amplo</span>
             </button>
             <button
               type="button"
               onClick={() => handleSelectPaperWidth('80mm')}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition ${
+              className={`px-2 py-1 rounded-md text-[11px] font-bold transition ${
                 paperWidth === '80mm'
                   ? 'bg-amber-600 text-white shadow-sm'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
+              title="Largura de 70mm para impressoras de 80mm"
             >
-              <span>80mm (Padrão)</span>
+              <span>80mm</span>
             </button>
           </div>
         </div>
@@ -180,7 +194,12 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
         <div className="px-4 py-2 bg-amber-950/30 border-b border-amber-900/40 text-[11px] text-amber-300 flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
           <span>
-            <strong>Otimizado para {paperWidth}:</strong> Imprime com texto 100% legível, sem bordas escuras e sem margens cortadas.
+            {paperWidth === '58mm' ? (
+              <strong>Recuo de Segurança Ativado (42mm):</strong>
+            ) : (
+              <strong>Modo {paperWidth}:</strong>
+            )}{' '}
+            Margem direita ajustada para os valores e centavos não cortarem na MP58C7.
           </span>
         </div>
 
@@ -188,12 +207,12 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
         <div className="p-3 sm:p-5 overflow-y-auto max-h-[55vh] bg-charcoal-950/70 flex justify-center">
           <div
             id="thermal-receipt-printable"
-            className="bg-white text-black p-3.5 rounded-lg shadow-xl font-mono text-xs space-y-2 border border-gray-300 transition-all select-all"
+            className="bg-white text-black p-3 rounded-lg shadow-xl font-mono text-xs space-y-1.5 border border-gray-300 transition-all select-all text-left"
             style={{
-              width: paperWidth === '58mm' ? '300px' : '380px',
+              width: paperWidth === '80mm' ? '360px' : (paperWidth === '58mm-wide' ? '280px' : '250px'),
               maxWidth: '100%',
-              fontSize: paperWidth === '58mm' ? '11px' : '12px',
-              lineHeight: '1.25',
+              fontSize: paperWidth === '80mm' ? '12px' : (paperWidth === '58mm-wide' ? '10.5px' : '10px'),
+              lineHeight: '1.22',
             }}
           >
             {/* Cabeçalho */}
@@ -333,7 +352,7 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
               title={`Imprimir cupom formatado para impressora térmica ${paperWidth}`}
             >
               <Printer className="w-4 h-4" />
-              <span>Imprimir Cupom ({paperWidth})</span>
+              <span>Imprimir Cupom ({paperWidth === '58mm' ? '58mm Seguro' : (paperWidth === '58mm-wide' ? '58mm Amplo' : '80mm')})</span>
             </button>
 
             <button
