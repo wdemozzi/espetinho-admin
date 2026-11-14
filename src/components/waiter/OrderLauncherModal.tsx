@@ -92,8 +92,13 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
     const isSingleChoice =
       product.addon_selection_mode === 'single' ||
+      (product.addons && product.addons.some((a) => a.addon_type === 'single')) ||
       product.name.toLowerCase().includes('catupiry') ||
-      product.name.toLowerCase().includes('caipirinha');
+      product.name.toLowerCase().includes('caipirin') ||
+      product.name.toLowerCase().includes('caipira') ||
+      product.name.toLowerCase().includes('sabor') ||
+      (product.addon_selection_mode !== 'multiple' &&
+        Boolean(product.addons && product.addons.length >= 2 && product.addons.every((a) => a.price_cents === 0)));
 
     if (isSingleChoice && product.addons && product.addons.length > 0) {
       const defaultOpt = product.addons.find((a) => a.price_cents === 0) || product.addons[0];
@@ -156,8 +161,13 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
     const isSingleChoice =
       addonProduct.addon_selection_mode === 'single' ||
+      (addonProduct.addons && addonProduct.addons.some((a) => a.addon_type === 'single')) ||
       addonProduct.name.toLowerCase().includes('catupiry') ||
-      addonProduct.name.toLowerCase().includes('caipirinha');
+      addonProduct.name.toLowerCase().includes('caipirin') ||
+      addonProduct.name.toLowerCase().includes('caipira') ||
+      addonProduct.name.toLowerCase().includes('sabor') ||
+      (addonProduct.addon_selection_mode !== 'multiple' &&
+        Boolean(addonProduct.addons && addonProduct.addons.length >= 2 && addonProduct.addons.every((a) => a.price_cents === 0)));
 
     const selectedFlavor = tempAddons[0]?.name.replace(/^(Espeto|Sabor):\s*/i, '') || 'Opção selecionada';
     const currentProduct = addonProduct;
@@ -382,13 +392,21 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                   return (
                     <div
                       key={prod.id}
-                      className={`p-3 rounded-2xl border transition flex flex-col justify-between ${qtyInDraft > 0
+                      className={`p-3 rounded-2xl border transition flex flex-col justify-between relative ${qtyInDraft > 0
                         ? 'bg-ember-950/20 border-ember-500/70'
+                        : prod.is_promo
+                        ? 'bg-charcoal-800/90 border-amber-500/60 shadow-lg shadow-amber-500/10'
                         : 'bg-charcoal-800/80 border-gray-700/80 hover:border-gray-600'
                         }`}
                     >
+                      {prod.is_promo && (
+                        <div className="absolute -top-2 left-3 px-2 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-amber-500 text-white font-black text-[9px] shadow flex items-center gap-1 animate-pulse">
+                          <Flame className="w-2.5 h-2.5 text-yellow-300" />
+                          <span>{prod.promo_tag || `${prod.promo_discount_percent || 20}% OFF`}</span>
+                        </div>
+                      )}
                       <div>
-                        <div className="flex items-start justify-between gap-1 mb-1">
+                        <div className="flex items-start justify-between gap-1 mb-1 mt-0.5">
                           <span className="font-bold text-sm text-gray-100 leading-snug">
                             {prod.name}
                           </span>
@@ -400,9 +418,20 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-gray-700/60">
-                        <span className="font-mono font-extrabold text-ember-400 text-sm">
-                          {formatBRL(prod.price_cents)}
-                        </span>
+                        {prod.is_promo && prod.original_price_cents ? (
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 line-through font-mono">
+                              De {formatBRL(prod.original_price_cents)}
+                            </span>
+                            <span className="font-mono font-extrabold text-amber-400 text-sm">
+                              Por {formatBRL(prod.price_cents)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-mono font-extrabold text-ember-400 text-sm">
+                            {formatBRL(prod.price_cents)}
+                          </span>
+                        )}
 
                         {hasAddons ? (
                           <button
@@ -817,8 +846,13 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
               const isGenericSingle =
                 addonProduct.addon_selection_mode === 'single' ||
+                (addonProduct.addons && addonProduct.addons.some((a) => a.addon_type === 'single')) ||
                 addonProduct.name.toLowerCase().includes('catupiry') ||
-                addonProduct.name.toLowerCase().includes('caipirinha');
+                addonProduct.name.toLowerCase().includes('caipirin') ||
+                addonProduct.name.toLowerCase().includes('caipira') ||
+                addonProduct.name.toLowerCase().includes('sabor') ||
+                (addonProduct.addon_selection_mode !== 'multiple' &&
+                  Boolean(addonProduct.addons && addonProduct.addons.length >= 2 && addonProduct.addons.every((a) => a.price_cents === 0)));
 
               if (isGenericSingle && addonProduct.addons && addonProduct.addons.length > 0) {
                 const groupTitle =

@@ -108,6 +108,12 @@ export const AdminDashboard: React.FC = () => {
   const [newAddonName, setNewAddonName] = useState<string>('');
   const [newAddonPrice, setNewAddonPrice] = useState<string>('');
 
+  // Estados da Promoção Chamativa
+  const [isPromoActive, setIsPromoActive] = useState<boolean>(false);
+  const [promoPercentInput, setPromoPercentInput] = useState<string>('20');
+  const [promoPriceInput, setPromoPriceInput] = useState<string>('');
+  const [promoTagInput, setPromoTagInput] = useState<string>('🔥 20% OFF');
+
   const [isTableModalOpen, setIsTableModalOpen] = useState<boolean>(false);
   const [newTableLabel, setNewTableLabel] = useState<string>('');
   const [newTableCapacity, setNewTableCapacity] = useState<number>(4);
@@ -295,7 +301,19 @@ export const AdminDashboard: React.FC = () => {
     setNewAddonPrice('');
     if (prod) {
       setEditingProduct({ ...prod, addons: prod.addons ? [...prod.addons] : [] });
-      setPriceInput((prod.price_cents / 100).toFixed(2));
+      if (prod.is_promo && prod.original_price_cents) {
+        setIsPromoActive(true);
+        setPriceInput((prod.original_price_cents / 100).toFixed(2));
+        setPromoPriceInput((prod.price_cents / 100).toFixed(2));
+        setPromoPercentInput(prod.promo_discount_percent ? String(prod.promo_discount_percent) : '20');
+        setPromoTagInput(prod.promo_tag || `🔥 ${prod.promo_discount_percent || 20}% OFF`);
+      } else {
+        setIsPromoActive(false);
+        setPriceInput((prod.price_cents / 100).toFixed(2));
+        setPromoPriceInput('');
+        setPromoPercentInput('20');
+        setPromoTagInput('🔥 20% OFF');
+      }
     } else {
       const defaultCat = adminCategoryFilter !== 'all'
         ? categories.find((c) => c.id === adminCategoryFilter) || categories[0]
@@ -313,8 +331,74 @@ export const AdminDashboard: React.FC = () => {
         addons: [],
       });
       setPriceInput('');
+      setIsPromoActive(false);
+      setPromoPriceInput('');
+      setPromoPercentInput('20');
+      setPromoTagInput('🔥 20% OFF');
     }
     setIsProductModalOpen(true);
+  };
+
+  // Helper Promoção: Aplica porcentagem e recalcula o preço promocional
+  const handleApplyPromoPercent = (percent: number, basePriceStr?: string) => {
+    const base = parseBRLToCents(basePriceStr !== undefined ? basePriceStr : priceInput);
+    setPromoPercentInput(String(percent));
+    if (percent <= 0 || base <= 0) {
+      setPromoPriceInput('');
+      setPromoTagInput('🔥 PROMOÇÃO');
+      return;
+    }
+    const discountedCents = Math.round(base * (1 - percent / 100));
+    setPromoPriceInput((discountedCents / 100).toFixed(2));
+    setPromoTagInput(`🔥 ${percent}% OFF`);
+  };
+
+  // Helper Promoção: Preço Promocional manual em R$
+  const handlePromoPriceChange = (promoVal: string) => {
+    setPromoPriceInput(promoVal);
+    const base = parseBRLToCents(priceInput);
+    const promo = parseBRLToCents(promoVal);
+    if (base > 0 && promo > 0 && promo < base) {
+      const pct = Math.round(((base - promo) / base) * 100);
+      setPromoPercentInput(String(pct));
+      setPromoTagInput(`🔥 ${pct}% OFF`);
+    }
+  };
+
+  // Helper Preço Normal: Se promoção estiver ativa e tiver porcentagem, recalcula o preço promocional
+  const handleBasePriceChange = (val: string) => {
+    setPriceInput(val);
+    if (isPromoActive && promoPercentInput) {
+      const pct = parseInt(promoPercentInput, 10);
+      if (pct > 0) {
+        handleApplyPromoPercent(pct, val);
+      }
+    }
+  };
+
+  // Helper Nome do Produto: Auto-configura Escolha Única se for Caipirinha, Catupiry, etc.
+  const handleProductNameChange = (name: string) => {
+    const isSingle =
+      name.toLowerCase().includes('catupiry') ||
+      name.toLowerCase().includes('caipirin') ||
+      name.toLowerCase().includes('caipira') ||
+      name.toLowerCase().includes('sabor');
+
+    setEditingProduct((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        name,
+        addon_selection_mode: isSingle ? 'single' : (prev.addon_selection_mode || 'multiple'),
+        addon_group_title: isSingle
+          ? (name.toLowerCase().includes('caipirin') || name.toLowerCase().includes('caipira')
+              ? 'Escolha o Sabor da Caipirinha (1 Incluso)'
+              : name.toLowerCase().includes('espet')
+              ? 'Escolha o Tipo de Espeto (1 Incluso)'
+              : 'Escolha 1 Opção (Incluso no Valor)')
+          : prev.addon_group_title,
+      };
+    });
   };
 
   const handleChangeProductCategory = (productId: string, newCategoryId: string) => {
@@ -362,6 +446,12 @@ export const AdminDashboard: React.FC = () => {
   const handleAddAddonToProduct = () => {
     if (!newAddonName.trim()) return;
     const priceCents = parseBRLToCents(newAddonPrice || '0');
+    const isSingle =
+      editingProduct?.addon_selection_mode === 'single' ||
+      (editingProduct?.name || '').toLowerCase().includes('caipirin') ||
+      (editingProduct?.name || '').toLowerCase().includes('caipira') ||
+      (editingProduct?.name || '').toLowerCase().includes('catupiry');
+
     const newAddon = {
       id: `add-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       product_id: editingProduct?.id || '',
@@ -369,6 +459,7 @@ export const AdminDashboard: React.FC = () => {
       price_cents: priceCents,
       is_available: true,
       sort_order: (editingProduct?.addons?.length || 0) + 1,
+      addon_type: isSingle ? ('single' as const) : ('multiple' as const),
     };
     setEditingProduct((prev) => prev ? {
       ...prev,
@@ -658,13 +749,53 @@ export const AdminDashboard: React.FC = () => {
     e.preventDefault();
     if (!editingProduct || !editingProduct.name) return;
 
+    const normalPriceCents = parseBRLToCents(priceInput);
+    let finalSalePriceCents = normalPriceCents;
+    let originalPriceCents: number | undefined = undefined;
+    let promoDiscountPercent: number | undefined = undefined;
+    let promoTag: string | undefined = undefined;
+
+    if (isPromoActive) {
+      const promoCents = parseBRLToCents(promoPriceInput);
+      if (promoCents > 0 && promoCents < normalPriceCents) {
+        finalSalePriceCents = promoCents;
+        originalPriceCents = normalPriceCents;
+        promoDiscountPercent = parseInt(promoPercentInput, 10) || Math.round(((normalPriceCents - promoCents) / normalPriceCents) * 100);
+        promoTag = promoTagInput.trim() || `🔥 ${promoDiscountPercent}% OFF`;
+      }
+    }
+
+    // Se o produto tiver addons e for Caipirinha/Espeto ou modo single, garante que os addons tenham addon_type = 'single'
+    const isSingleMode =
+      editingProduct.addon_selection_mode === 'single' ||
+      (editingProduct.name || '').toLowerCase().includes('caipirin') ||
+      (editingProduct.name || '').toLowerCase().includes('caipira') ||
+      (editingProduct.name || '').toLowerCase().includes('catupiry');
+
+    const sanitizedAddons = (editingProduct.addons || []).map((a) => ({
+      ...a,
+      addon_type: isSingleMode ? ('single' as const) : a.addon_type,
+    }));
+
     db.saveProduct({
       ...editingProduct,
-      price_cents: parseBRLToCents(priceInput),
+      addon_selection_mode: isSingleMode ? 'single' : (editingProduct.addon_selection_mode || 'multiple'),
+      addon_group_title: isSingleMode
+        ? (editingProduct.addon_group_title || (
+            (editingProduct.name || '').toLowerCase().includes('caipirin') || (editingProduct.name || '').toLowerCase().includes('caipira')
+              ? 'Escolha o Sabor da Caipirinha (1 Incluso)'
+              : 'Escolha 1 Opção (Incluso no Valor)'
+          ))
+        : editingProduct.addon_group_title,
+      price_cents: finalSalePriceCents,
+      is_promo: Boolean(isPromoActive && originalPriceCents),
+      original_price_cents: originalPriceCents,
+      promo_discount_percent: promoDiscountPercent,
+      promo_tag: promoTag,
       stock_quantity: typeof editingProduct.stock_quantity === 'number' ? editingProduct.stock_quantity : 40,
       track_stock: editingProduct.track_stock ?? true,
       min_stock_alert: typeof editingProduct.min_stock_alert === 'number' ? editingProduct.min_stock_alert : 10,
-      addons: editingProduct.addons || [],
+      addons: sanitizedAddons,
     });
 
     setIsProductModalOpen(false);
@@ -1861,14 +1992,28 @@ END $$;`;
                       return (
                         <tr key={p.id} className="hover:bg-charcoal-800/40 transition">
                           <td className="p-3.5">
-                            <p className="font-bold text-white text-sm">{p.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-white text-sm">{p.name}</p>
+                              {p.is_promo && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-amber-500 text-white font-extrabold text-[9px] shadow animate-pulse">
+                                  {p.promo_tag || `${p.promo_discount_percent || 20}% OFF`}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-gray-500 text-[11px] line-clamp-1">{p.description}</p>
-                            {p.addons && p.addons.length > 0 && (
-                              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] bg-purple-950/60 border border-purple-800/50 text-purple-300 font-semibold">
-                                <Sparkles className="w-2.5 h-2.5" />
-                                {p.addons.length} complementos ({p.addons.map((a) => a.name).slice(0, 3).join(', ')}{p.addons.length > 3 ? '...' : ''})
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              {p.addon_selection_mode === 'single' && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-950/60 border border-amber-800/50 text-amber-300 font-bold">
+                                  🔘 1 Sabor Incluso
+                                </span>
+                              )}
+                              {p.addons && p.addons.length > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-purple-950/60 border border-purple-800/50 text-purple-300 font-semibold">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  {p.addons.length} complementos ({p.addons.map((a) => a.name).slice(0, 3).join(', ')}{p.addons.length > 3 ? '...' : ''})
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="p-3.5">
                             {/* Seletor rápido de categoria com atualização instantânea */}
@@ -1898,8 +2043,21 @@ END $$;`;
                               <option value="bar">🍺 Bar / Bebidas</option>
                             </select>
                           </td>
-                          <td className="p-3.5 font-mono font-bold text-ember-400 text-sm">
-                            {formatBRL(p.price_cents)}
+                          <td className="p-3.5 font-mono text-sm">
+                            {p.is_promo && p.original_price_cents ? (
+                              <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-500 line-through">
+                                  {formatBRL(p.original_price_cents)}
+                                </span>
+                                <span className="font-extrabold text-amber-400">
+                                  {formatBRL(p.price_cents)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="font-bold text-ember-400">
+                                {formatBRL(p.price_cents)}
+                              </span>
+                            )}
                           </td>
                           <td className="p-3.5 text-center">
                             <button
@@ -2355,11 +2513,21 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Açaí no Copo 500ml, Jantinha Completa..."
+                  placeholder="Ex: Caipirinha CT, Espetinho com Catupiry, Açaí no Copo 500ml..."
                   value={editingProduct.name || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  onChange={(e) => handleProductNameChange(e.target.value)}
                   className="w-full px-3 py-2 bg-charcoal-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-ember-500"
                 />
+                {((editingProduct.name || '').toLowerCase().includes('caipirin') ||
+                  (editingProduct.name || '').toLowerCase().includes('caipira') ||
+                  editingProduct.addon_selection_mode === 'single') && (
+                  <div className="mt-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-[11px] text-emerald-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                    <span>
+                      <strong>Escolha Única Ativada:</strong> O cliente só poderá escolher <strong>01 sabor/tipo</strong> incluso neste valor.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -2428,13 +2596,13 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-300 block mb-1">Preço Base de Venda (R$):</label>
+                  <label className="text-xs font-semibold text-gray-300 block mb-1">Preço Normal de Venda (R$):</label>
                   <input
                     type="text"
                     required
                     placeholder="0,00"
                     value={priceInput}
-                    onChange={(e) => setPriceInput(e.target.value)}
+                    onChange={(e) => handleBasePriceChange(e.target.value)}
                     className="w-full px-3 py-2 bg-charcoal-800 border border-gray-700 rounded-lg text-sm text-white font-mono font-bold focus:outline-none focus:border-ember-500"
                   />
                 </div>
@@ -2454,6 +2622,165 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                     className="w-full px-3 py-2 bg-charcoal-800 border border-gray-700 rounded-lg text-sm text-white font-mono font-bold focus:outline-none focus:border-amber-500"
                   />
                 </div>
+              </div>
+
+              {/* BLOCO DE PROMOÇÃO CHAMATIVA (PERCENTUAL OU VALOR FIXO COM SELO) */}
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-950/40 via-charcoal-900 to-amber-950/20 border border-amber-500/50 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400">
+                      <Flame className="w-4 h-4 animate-bounce" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white flex items-center gap-1.5 uppercase tracking-wide">
+                        <span>Preço Promocional &amp; Tag em Destaque</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500 text-black font-extrabold">NOVO</span>
+                      </h4>
+                      <p className="text-[10px] text-gray-400">
+                        Ative para estampar selo chamativo e preço "De/Por" no cardápio
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isPromoActive}
+                      onChange={(e) => {
+                        const active = e.target.checked;
+                        setIsPromoActive(active);
+                        if (active && (!promoPriceInput || promoPriceInput === '0,00' || promoPriceInput === '')) {
+                          handleApplyPromoPercent(20);
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-charcoal-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                {isPromoActive && (
+                  <div className="space-y-3 pt-2 border-t border-amber-500/30">
+                    {/* Botões Rápidos de Porcentagem */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                          <Percent className="w-3.5 h-3.5" />
+                          <span>Definir por Porcentagem (% OFF):</span>
+                        </label>
+                        {parseInt(promoPercentInput, 10) > 0 && (
+                          <span className="text-[10px] font-mono font-bold text-emerald-400">
+                            Economia de {formatBRL(Math.max(0, parseBRLToCents(priceInput) - parseBRLToCents(promoPriceInput)))}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="relative w-20">
+                          <input
+                            type="number"
+                            min={1}
+                            max={90}
+                            value={promoPercentInput}
+                            onChange={(e) => {
+                              const p = parseInt(e.target.value, 10) || 0;
+                              handleApplyPromoPercent(p);
+                            }}
+                            className="w-full pl-2 pr-6 py-1.5 bg-charcoal-800 border border-amber-500/60 rounded-lg text-xs font-mono font-extrabold text-amber-300 focus:outline-none focus:border-amber-400"
+                            placeholder="0"
+                          />
+                          <span className="absolute right-2 top-1.5 text-xs text-amber-400 font-bold">%</span>
+                        </div>
+                        {[5, 10, 15, 20, 25, 30, 50].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => handleApplyPromoPercent(pct)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono transition ${
+                              promoPercentInput === String(pct)
+                                ? 'bg-amber-600 text-white shadow font-black scale-105'
+                                : 'bg-charcoal-800 text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-700'
+                            }`}
+                          >
+                            {pct}%
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPromoPercentInput('0');
+                            setPromoPriceInput('');
+                            setPromoTagInput('');
+                          }}
+                          className="px-2 py-1.5 rounded-lg text-xs font-bold text-gray-400 hover:text-red-400 hover:bg-charcoal-800 transition"
+                        >
+                          Zerar
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Preço Promocional Final (R$) e Selo */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-300 block mb-1">
+                          Ou Preço Final Promocional (R$):
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="0,00"
+                          value={promoPriceInput}
+                          onChange={(e) => handlePromoPriceChange(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-charcoal-800 border border-emerald-500/60 rounded-lg text-xs text-emerald-400 font-mono font-black focus:outline-none focus:border-emerald-400"
+                        />
+                        <p className="text-[9.5px] text-gray-400 mt-1">
+                          O cliente pagará este valor com a promoção ativa.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-gray-300 block mb-1">
+                          Texto do Selo em Destaque:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: 🔥 20% OFF, OFERTA"
+                          value={promoTagInput}
+                          onChange={(e) => setPromoTagInput(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-charcoal-800 border border-gray-700 rounded-lg text-xs text-white font-bold focus:outline-none focus:border-amber-400"
+                        />
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {['🔥 OFERTA', '⚡ RELÂMPAGO', '💥 PROMOÇÃO', '⭐ MAIS PEDIDO'].map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setPromoTagInput(tag)}
+                              className="text-[9px] px-1.5 py-0.5 rounded bg-charcoal-800 text-gray-400 hover:text-white border border-gray-700 transition"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preview da Promoção */}
+                    <div className="p-2.5 rounded-lg bg-black/40 border border-amber-500/40 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-amber-500 text-white font-black text-[10px] shadow-sm animate-pulse">
+                          {promoTagInput || `${promoPercentInput}% OFF`}
+                        </span>
+                        <span className="text-xs text-gray-300">
+                          De <span className="line-through text-gray-500 font-mono">{formatBRL(parseBRLToCents(priceInput))}</span> por{' '}
+                          <strong className="text-amber-400 font-mono font-black text-sm">
+                            {formatBRL(parseBRLToCents(promoPriceInput))}
+                          </strong>
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/60">
+                        Ativa no Cardápio
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SEÇÃO DE COMPLEMENTOS, ESCOLHA DO ESPETINHO (JANTINHAS) OU SABORES (MILK-SHAKE) */}
@@ -2540,10 +2867,21 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ct_cloud_sync;`}</pre>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setEditingProduct({ ...editingProduct, addon_selection_mode: 'single', addon_group_title: editingProduct.addon_group_title || 'Escolha 1 Opção' })}
-                          className={`p-2 rounded-lg border text-left text-xs transition ${
+                          onClick={() => setEditingProduct({
+                            ...editingProduct,
+                            addon_selection_mode: 'single',
+                            addon_group_title: editingProduct.addon_group_title || (
+                              (editingProduct.name || '').toLowerCase().includes('caipirin') || (editingProduct.name || '').toLowerCase().includes('caipira')
+                                ? 'Escolha o Sabor da Caipirinha (1 Incluso)'
+                                : (editingProduct.name || '').toLowerCase().includes('espet')
+                                ? 'Escolha o Tipo de Espeto (1 Incluso)'
+                                : 'Escolha 1 Opção (Incluso no Valor)'
+                            ),
+                            addons: (editingProduct.addons || []).map((a) => ({ ...a, addon_type: 'single' })),
+                          })}
+                          className={`p-2.5 rounded-lg border text-left text-xs transition ${
                             editingProduct.addon_selection_mode === 'single'
-                              ? 'bg-amber-600 text-white border-amber-500 font-bold shadow'
+                              ? 'bg-amber-600 text-white border-amber-400 font-bold shadow-md shadow-amber-600/30 ring-1 ring-white/20'
                               : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
                           }`}
                         >
