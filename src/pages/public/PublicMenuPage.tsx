@@ -82,8 +82,26 @@ export const PublicMenuPage: React.FC<PublicMenuPageProps> = ({
   const openProductModal = (product: Product) => {
     setActiveModalProduct(product);
     setModalQuantity(1);
-    setModalSelectedAddons([]);
     setModalNotes('');
+
+    const isGenericSingle =
+      product.addon_selection_mode === 'single' ||
+      (product.addons && product.addons.some((a) => a.addon_type === 'single')) ||
+      product.name.toLowerCase().includes('catupiry') ||
+      product.name.toLowerCase().includes('caipirinha');
+
+    if (isGenericSingle && product.addons && product.addons.length > 0) {
+      const defaultOption =
+        product.addons.find((a) => a.price_cents === 0) ||
+        product.addons[0];
+      setModalSelectedAddons(defaultOption ? [{ name: defaultOption.name, price_cents: defaultOption.price_cents }] : []);
+    } else {
+      setModalSelectedAddons([]);
+    }
+  };
+
+  const handleSelectSingleAddon = (addon: { name: string; price_cents: number }) => {
+    setModalSelectedAddons([{ name: addon.name, price_cents: addon.price_cents }]);
   };
 
   const handleToggleAddon = (addon: { name: string; price_cents: number }) => {
@@ -433,48 +451,114 @@ export const PublicMenuPage: React.FC<PublicMenuPageProps> = ({
               </div>
 
               {/* Addons Selection */}
-              {activeModalProduct.addons && activeModalProduct.addons.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-gray-800">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-gray-200 uppercase tracking-wider">
-                      {activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')
-                        ? '🍧 Escolha seus Complementos:'
-                        : activeModalProduct.name.toLowerCase().includes('jantinha')
-                        ? '🍽️ Espetos & Acompanhamentos:'
-                        : '✨ Complementos & Opcionais:'}
-                    </h4>
-                    <span className="text-[10px] text-gray-400 font-mono">
-                      {modalSelectedAddons.length} selecionado(s)
-                    </span>
-                  </div>
-                  <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                    {activeModalProduct.addons.map((add) => {
-                      const isSelected = modalSelectedAddons.some((a) => a.name === add.name);
-                      return (
-                        <div
-                          key={add.id}
-                          onClick={() => handleToggleAddon({ name: add.name, price_cents: add.price_cents })}
-                          className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition ${
-                            isSelected
-                              ? 'bg-ember-600 text-white border-ember-500 shadow-md font-bold'
-                              : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isSelected ? 'bg-white text-ember-600 border-white' : 'border-gray-600 bg-charcoal-900'}`}>
-                              {isSelected ? '✓' : ''}
+              {activeModalProduct.addons && activeModalProduct.addons.length > 0 && (() => {
+                const isGenericSingle =
+                  activeModalProduct.addon_selection_mode === 'single' ||
+                  (activeModalProduct.addons && activeModalProduct.addons.some((a) => a.addon_type === 'single')) ||
+                  activeModalProduct.name.toLowerCase().includes('catupiry') ||
+                  activeModalProduct.name.toLowerCase().includes('caipirinha');
+
+                const groupTitle =
+                  activeModalProduct.addon_group_title ||
+                  (activeModalProduct.name.toLowerCase().includes('espet')
+                    ? 'Escolha o Tipo de Espeto (1 Incluso):'
+                    : activeModalProduct.name.toLowerCase().includes('caipirinha')
+                    ? 'Escolha o Sabor da Caipirinha (1 Incluso):'
+                    : 'Escolha 1 Opção (Incluso no Valor):');
+
+                if (isGenericSingle) {
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-gray-800">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5 uppercase tracking-wider">
+                          <span>🔘</span>
+                          <span>{groupTitle}</span>
+                        </h4>
+                        <span className="text-[10px] text-amber-400 font-mono font-bold px-2 py-0.5 rounded bg-amber-900/60 border border-amber-700/50">
+                          1 Obrigatório
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                        {activeModalProduct.addons.map((add) => {
+                          const isSelected = modalSelectedAddons.some((a) => a.name === add.name);
+                          return (
+                            <div
+                              key={add.id}
+                              onClick={() => handleSelectSingleAddon({ name: add.name, price_cents: add.price_cents })}
+                              className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition ${
+                                isSelected
+                                  ? 'bg-amber-600 text-white border-amber-500 shadow-md font-bold'
+                                  : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-4 h-4 rounded-full flex items-center justify-center border text-[9px] ${
+                                    isSelected ? 'bg-white text-amber-700 border-white font-black' : 'border-gray-500 bg-charcoal-900'
+                                  }`}
+                                >
+                                  {isSelected ? '●' : ''}
+                                </div>
+                                <span>{add.name.replace(/^(Espeto|Sabor):\s*/i, '')}</span>
+                              </div>
+                              <span
+                                className={`font-mono text-xs font-bold ${
+                                  isSelected ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-emerald-400'
+                                }`}
+                              >
+                                {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                              </span>
                             </div>
-                            <span>{add.name}</span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-gray-800">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-gray-200 uppercase tracking-wider">
+                        {activeModalProduct.name.toLowerCase().includes('açaí') || activeModalProduct.name.toLowerCase().includes('acai')
+                          ? '🍧 Escolha seus Complementos:'
+                          : activeModalProduct.name.toLowerCase().includes('jantinha')
+                          ? '🍽️ Espetos & Acompanhamentos:'
+                          : '✨ Complementos & Opcionais:'}
+                      </h4>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {modalSelectedAddons.length} selecionado(s)
+                      </span>
+                    </div>
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                      {activeModalProduct.addons.map((add) => {
+                        const isSelected = modalSelectedAddons.some((a) => a.name === add.name);
+                        return (
+                          <div
+                            key={add.id}
+                            onClick={() => handleToggleAddon({ name: add.name, price_cents: add.price_cents })}
+                            className={`p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs transition ${
+                              isSelected
+                                ? 'bg-ember-600 text-white border-ember-500 shadow-md font-bold'
+                                : 'bg-charcoal-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isSelected ? 'bg-white text-ember-600 border-white' : 'border-gray-600 bg-charcoal-900'}`}>
+                                {isSelected ? '✓' : ''}
+                              </div>
+                              <span>{add.name}</span>
+                            </div>
+                            <span className={`font-mono text-xs font-bold ${isSelected ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-gray-400'}`}>
+                              {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
+                            </span>
                           </div>
-                          <span className={`font-mono text-xs font-bold ${isSelected ? 'text-white' : add.price_cents > 0 ? 'text-amber-400' : 'text-gray-400'}`}>
-                            {add.price_cents > 0 ? `+${formatBRL(add.price_cents)}` : 'Incluso'}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Notes */}
               <div className="pt-2 border-t border-gray-800 space-y-1.5">

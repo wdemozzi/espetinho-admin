@@ -249,11 +249,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
           <button
             type="button"
             onClick={() => setMobileTab('catalog')}
-            className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition ${
-              mobileTab === 'catalog'
-                ? 'border-ember-500 text-ember-400 bg-charcoal-900'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
+            className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition ${mobileTab === 'catalog'
+              ? 'border-ember-500 text-ember-400 bg-charcoal-900'
+              : 'border-transparent text-gray-400 hover:text-gray-200'
+              }`}
           >
             <Flame className="w-4 h-4" />
             <span>Cardápio de Produtos</span>
@@ -262,11 +261,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
           <button
             type="button"
             onClick={() => setMobileTab('cart')}
-            className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition ${
-              mobileTab === 'cart'
-                ? 'border-ember-500 text-ember-400 bg-charcoal-900'
-                : 'border-transparent text-gray-400 hover:text-gray-200'
-            }`}
+            className={`flex-1 py-3 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition ${mobileTab === 'cart'
+              ? 'border-ember-500 text-ember-400 bg-charcoal-900'
+              : 'border-transparent text-gray-400 hover:text-gray-200'
+              }`}
           >
             <ShoppingBag className="w-4 h-4" />
             <span>
@@ -286,9 +284,8 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           {/* Products Catalog (Visible if mobileTab === 'catalog' OR on Desktop) */}
           <div
-            className={`lg:col-span-7 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-800 overflow-hidden ${
-              mobileTab === 'catalog' ? 'flex' : 'hidden lg:flex'
-            }`}
+            className={`lg:col-span-7 flex flex-col border-b lg:border-b-0 lg:border-r border-gray-800 overflow-hidden ${mobileTab === 'catalog' ? 'flex' : 'hidden lg:flex'
+              }`}
           >
             {/* Category Pills */}
             <div className="flex gap-1.5 p-2.5 sm:p-3 bg-charcoal-850/90 border-b border-gray-800 overflow-x-auto flex-shrink-0 no-scrollbar">
@@ -296,11 +293,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
-                    selectedCategoryId === cat.id
-                      ? 'bg-ember-600 text-white shadow'
-                      : 'bg-charcoal-800 text-gray-300 hover:bg-gray-700 border border-gray-700/60'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${selectedCategoryId === cat.id
+                    ? 'bg-ember-600 text-white shadow'
+                    : 'bg-charcoal-800 text-gray-300 hover:bg-gray-700 border border-gray-700/60'
+                    }`}
                 >
                   {cat.name}
                 </button>
@@ -317,11 +313,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                   return (
                     <div
                       key={prod.id}
-                      className={`p-3 rounded-2xl border transition flex flex-col justify-between ${
-                        qtyInDraft > 0
-                          ? 'bg-ember-950/20 border-ember-500/70'
-                          : 'bg-charcoal-800/80 border-gray-700/80 hover:border-gray-600'
-                      }`}
+                      className={`p-3 rounded-2xl border transition flex flex-col justify-between ${qtyInDraft > 0
+                        ? 'bg-ember-950/20 border-ember-500/70'
+                        : 'bg-charcoal-800/80 border-gray-700/80 hover:border-gray-600'
+                        }`}
                     >
                       <div>
                         <div className="flex items-start justify-between gap-1 mb-1">
@@ -399,9 +394,8 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
 
           {/* Current Order Round Items (Visible if mobileTab === 'cart' OR on Desktop) */}
           <div
-            className={`lg:col-span-5 flex flex-col bg-charcoal-850/70 overflow-hidden ${
-              mobileTab === 'cart' ? 'flex' : 'hidden lg:flex'
-            }`}
+            className={`lg:col-span-5 flex flex-col bg-charcoal-850/70 overflow-hidden ${mobileTab === 'cart' ? 'flex' : 'hidden lg:flex'
+              }`}
           >
             <div className="p-3.5 border-b border-gray-800 flex items-center justify-between flex-shrink-0">
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
@@ -674,8 +668,8 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                   (addonProduct.name.toLowerCase().includes('espet')
                     ? 'Escolha o Tipo de Espeto (1 Opção Inclusa):'
                     : addonProduct.name.toLowerCase().includes('caipirinha')
-                    ? 'Escolha o Sabor da Caipirinha (1 Opção Inclusa):'
-                    : 'Escolha 1 Opção (Incluso no Valor):');
+                      ? 'Escolha o Sabor da Caipirinha (1 Opção Inclusa):'
+                      : 'Escolha 1 Opção (Incluso no Valor):');
 
                 const handleSelectSingle = (add: { name: string; price_cents: number }) => {
                   setTempAddons([{ name: add.name, price_cents: add.price_cents }]);
@@ -708,11 +702,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                               key={add.id}
                               type="button"
                               onClick={() => handleSelectSingle(add)}
-                              className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center justify-between transition ${
-                                isSelected
-                                  ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
-                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                              }`}
+                              className={`p-2.5 rounded-xl border text-left text-xs font-medium flex items-center justify-between transition ${isSelected
+                                ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
+                                : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
                             >
                               <div className="flex items-center gap-2 truncate">
                                 <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-amber-700 font-black' : 'border-gray-500'}`}>
@@ -752,11 +745,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                               key={add.id}
                               type="button"
                               onClick={() => handleSelectEspeto(add)}
-                              className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
-                                isSelected
-                                  ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
-                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                              }`}
+                              className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${isSelected
+                                ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
+                                : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
                             >
                               <div className="flex items-center gap-2 truncate">
                                 <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-amber-700 font-black' : 'border-gray-500'}`}>
@@ -787,11 +779,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                                 key={add.id}
                                 type="button"
                                 onClick={() => handleToggleExtra(add)}
-                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${
-                                  isChecked
-                                    ? 'bg-purple-950/70 border-purple-500 text-white font-semibold'
-                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                                }`}
+                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${isChecked
+                                  ? 'bg-purple-950/70 border-purple-500 text-white font-semibold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2">
                                   <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-purple-500 border-purple-400 text-white' : 'border-gray-600'}`}>
@@ -832,11 +823,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                               key={add.id}
                               type="button"
                               onClick={() => handleSelectSabor(add)}
-                              className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
-                                isSelected
-                                  ? 'bg-pink-600 text-white border-pink-500 shadow font-bold'
-                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                              }`}
+                              className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${isSelected
+                                ? 'bg-pink-600 text-white border-pink-500 shadow font-bold'
+                                : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                }`}
                             >
                               <div className="flex items-center gap-2 truncate">
                                 <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-pink-700 font-black' : 'border-gray-500'}`}>
@@ -867,11 +857,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                                 key={add.id}
                                 type="button"
                                 onClick={() => handleToggleExtra(add)}
-                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${
-                                  isChecked
-                                    ? 'bg-pink-950/70 border-pink-500 text-white font-semibold'
-                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                                }`}
+                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${isChecked
+                                  ? 'bg-pink-950/70 border-pink-500 text-white font-semibold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2">
                                   <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-pink-500 border-pink-400 text-white' : 'border-gray-600'}`}>
@@ -913,11 +902,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                                 key={add.id}
                                 type="button"
                                 onClick={() => handleSelectDestilado(add)}
-                                className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
-                                  isSelected
-                                    ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
-                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                                }`}
+                                className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${isSelected
+                                  ? 'bg-amber-600 text-white border-amber-500 shadow font-bold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 truncate">
                                   <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-amber-700 font-black' : 'border-gray-500'}`}>
@@ -953,11 +941,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                                 key={add.id}
                                 type="button"
                                 onClick={() => handleSelectSabor(add)}
-                                className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${
-                                  isSelected
-                                    ? 'bg-purple-600 text-white border-purple-500 shadow font-bold'
-                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                                }`}
+                                className={`p-2 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition ${isSelected
+                                  ? 'bg-purple-600 text-white border-purple-500 shadow font-bold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 truncate">
                                   <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border text-[9px] ${isSelected ? 'border-white bg-white text-purple-700 font-black' : 'border-gray-500'}`}>
@@ -990,11 +977,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                                 key={add.id}
                                 type="button"
                                 onClick={() => handleToggleExtra(add)}
-                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${
-                                  isChecked
-                                    ? 'bg-amber-950/70 border-amber-500 text-white font-semibold'
-                                    : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                                }`}
+                                className={`w-full p-2 rounded-lg border text-left text-xs flex items-center justify-between transition ${isChecked
+                                  ? 'bg-amber-950/70 border-amber-500 text-white font-semibold'
+                                  : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2">
                                   <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${isChecked ? 'bg-amber-500 border-amber-400 text-white' : 'border-gray-600'}`}>
@@ -1035,11 +1021,10 @@ export const OrderLauncherModal: React.FC<OrderLauncherModalProps> = ({
                               isChecked ? prev.filter((a) => a.name !== add.name) : [...prev, add]
                             );
                           }}
-                          className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition ${
-                            isChecked
-                              ? 'bg-ember-600 text-white border-ember-500 shadow-md shadow-ember-600/30 font-bold'
-                              : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
-                          }`}
+                          className={`w-full p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition ${isChecked
+                            ? 'bg-ember-600 text-white border-ember-500 shadow-md shadow-ember-600/30 font-bold'
+                            : 'bg-charcoal-800 text-gray-300 border-gray-700 hover:border-gray-600'
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${isChecked ? 'bg-white text-ember-700 border-white' : 'border-gray-600 bg-charcoal-900'}`}>
