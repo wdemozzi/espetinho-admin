@@ -2571,9 +2571,12 @@ class DatabaseStore {
 
   constructor() {
     this.loadFromStorage();
-    const alreadySeeded = typeof window !== 'undefined' ? localStorage.getItem('ct_demo_seeded') : null;
-    if (!alreadySeeded && this.orders.length === 0 && this.tabs.length === 0) {
-      this.seedInitialActiveTab();
+    if (typeof window !== 'undefined') {
+      const resetFlag = localStorage.getItem('ct_zero_reset_v20261120_clean');
+      if (resetFlag !== 'done') {
+        this.resetOperationalData();
+        localStorage.setItem('ct_zero_reset_v20261120_clean', 'done');
+      }
     }
     this.initRealtimeSync();
   }
@@ -2728,6 +2731,10 @@ class DatabaseStore {
 
     supabaseSync.init({
       onRemoteOrderCreated: (remoteOrder, remoteTab) => {
+        const resetTimestamp = Number(typeof window !== 'undefined' ? localStorage.getItem('ct_operational_reset_timestamp') || '0' : '0');
+        if (new Date(remoteOrder.created_at).getTime() <= resetTimestamp) {
+          return;
+        }
         // Fusão inteligente anti-regressão: se o pedido já existe ou está entregue, preserva o status final
         this.orders = mergeOrders(this.orders, [remoteOrder]);
         if (remoteTab) {
@@ -2784,14 +2791,17 @@ class DatabaseStore {
         this.notify();
       },
       onFullSyncReceived: (data) => {
+        const resetTimestamp = Number(typeof window !== 'undefined' ? localStorage.getItem('ct_operational_reset_timestamp') || '0' : '0');
         if (data.profiles && data.profiles.length > 0) {
           this.profiles = data.profiles;
         }
-        if (data.orders && data.orders.length > 0) {
-          this.orders = mergeOrders(this.orders, data.orders);
+        if (data.orders) {
+          const freshOrders = data.orders.filter((o) => new Date(o.created_at).getTime() > resetTimestamp);
+          this.orders = freshOrders;
         }
-        if (data.tabs && data.tabs.length > 0) {
-          this.tabs = mergeTabs(this.tabs, data.tabs);
+        if (data.tabs) {
+          const freshTabs = data.tabs.filter((t) => new Date(t.created_at).getTime() > resetTimestamp);
+          this.tabs = freshTabs;
         }
         if (data.products && data.products.length > 0) {
           const validProducts = data.products.filter((p) => !this.deletedProductIds.has(p.id));
@@ -2963,6 +2973,57 @@ class DatabaseStore {
     this.newOrderListeners.forEach((fn) => {
       try { fn(order, tab); } catch (err) { console.error('Erro no listener onNewOrder:', err); }
     });
+  }
+
+  /**
+   * Zera completamente todas as operações do sistema:
+   * - Apaga todas as comandas (abertas e histórico)
+   * - Apaga todos os pedidos (fila de preparo e histórico)
+   * - Apaga todas as entradas e pagamentos financeiros
+   * - Apaga todos os turnos de caixa e saídas (sangrias/suprimentos)
+   * - Libera todas as mesas (Mesa 01 a 10 livres)
+   * - Reseta numeração sequencial de pedidos para #1
+   * (Cardápio, categorias e usuários permanecem 100% intactos)
+   */
+  public resetOperationalData(): void {
+    this.tabs = [];
+    this.orders = [];
+    this.payments = [];
+    this.cashShifts = [];
+    this.splits = [];
+    this.tables = INITIAL_TABLES.map((t) => ({
+      ...t,
+      status: 'livre',
+      linked_table_id: null,
+      linked_table_label: null,
+    }));
+    this.nextOrderNumber = 1;
+
+    const nowTimestamp = Date.now();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('ct_demo_seeded', 'cleared_forever');
+        localStorage.setItem('ct_tabs', '[]');
+        localStorage.setItem('ct_backup_tabs', '[]');
+        localStorage.setItem('ct_orders', '[]');
+        localStorage.setItem('ct_backup_orders', '[]');
+        localStorage.setItem('ct_payments', '[]');
+        localStorage.setItem('ct_cash_shifts', '[]');
+        localStorage.setItem('ct_customer_leads', '[]');
+        localStorage.setItem('ct_next_order_num', '1');
+        localStorage.setItem('ct_operational_reset_timestamp', String(nowTimestamp));
+        localStorage.setItem('ct_tables', JSON.stringify(this.tables.map((t) => sanitizeTable(t)!)));
+      } catch (e) {
+        console.warn('Erro ao limpar localStorage no reset:', e);
+      }
+    }
+
+    this.persist();
+    this.notify();
+
+    // Sincroniza em nuvem no Supabase com forceOverwrite
+    supabaseSync.saveToCloud('orders', [], true);
+    supabaseSync.saveToCloud('tabs', [], true);
   }
 
   private notify() {

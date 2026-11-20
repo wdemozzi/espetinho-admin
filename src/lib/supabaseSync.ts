@@ -282,7 +282,7 @@ class SupabaseSyncService {
   }
 
   // --- CLOUD PERSISTENCE VIA ct_cloud_sync TABLE ---
-  public async saveToCloud(id: 'orders' | 'tabs' | 'profiles' | 'products' | 'categories', data: unknown) {
+  public async saveToCloud(id: 'orders' | 'tabs' | 'profiles' | 'products' | 'categories', data: unknown, forceOverwrite = false) {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -290,7 +290,7 @@ class SupabaseSyncService {
       let finalData = data;
 
       // If saving array of orders or tabs, merge with existing cloud records to prevent a new mobile client from overwriting computer orders
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && !forceOverwrite) {
         try {
           const { data: remoteRow } = await client
             .from('ct_cloud_sync')

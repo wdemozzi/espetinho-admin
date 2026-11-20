@@ -1109,6 +1109,23 @@ END $$;`;
                     <span className="w-2 h-2 rounded-full bg-amber-400" />
                   )}
                 </button>
+
+                <div className="border-t border-gray-700/80 my-1"></div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAdvancedModulesOpen(false);
+                    if (window.confirm('ATENÇÃO: Deseja realmente zerar todo o sistema operacional?\n\n• Todas as comandas abertas e fechadas serão apagadas.\n• Todos os pedidos e fila de preparo serão limpos.\n• Todas as mesas voltarão para o status LIVRE.\n• Todas as entradas financeiras e turnos de caixa serão zerados.\n\n(Seus produtos, cardápio e preços serão mantidos 100% preservados).')) {
+                      db.resetOperationalData();
+                      setToastMessage('Sistema zerado com sucesso! Comandas, pedidos e entradas foram limpos.');
+                      setTimeout(() => setToastMessage(null), 4000);
+                    }
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-left text-red-400 hover:bg-red-950/40 hover:text-red-300 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  <span>Zerar Comandas & Entradas</span>
+                </button>
               </div>
             )}
           </div>
