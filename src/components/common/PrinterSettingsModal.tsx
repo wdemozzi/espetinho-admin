@@ -136,10 +136,10 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="bg-charcoal-900 border border-gray-700/80 rounded-2xl max-w-lg w-full shadow-2xl relative my-auto flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/85 backdrop-blur-sm p-3 sm:p-6 flex justify-center items-start sm:items-center">
+      <div className="bg-charcoal-900 border border-gray-700/80 rounded-2xl max-w-lg w-full shadow-2xl relative my-auto flex flex-col max-h-[88vh] overflow-hidden">
         {/* Fixed Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-charcoal-900/95 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-charcoal-900 flex-shrink-0 z-10">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-purple-950/60 text-purple-400 border border-purple-800/60 flex-shrink-0">
               <Printer className="w-5 h-5" />
