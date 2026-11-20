@@ -42,15 +42,15 @@ export const KitchenKdsPage: React.FC<KitchenKdsPageProps> = ({
   }, []);
 
   const sectors = [
-    { id: 'all', label: 'Todos os Setores', icon: Layers },
-    { id: 'churrasqueira', label: 'Churrasqueira', icon: Flame },
-    { id: 'cozinha', label: 'Cozinha', icon: Soup },
-    { id: 'bar', label: 'Bar & Bebidas', icon: Beer },
+    { id: 'all', label: 'Central (Todos os Pedidos)', icon: Layers },
+    { id: 'churrasqueira', label: 'Espetos', icon: Flame },
+    { id: 'cozinha', label: 'Pratos & Porções', icon: Soup },
+    { id: 'bar', label: 'Bebidas', icon: Beer },
   ];
 
   const sectorMeta: Record<string, { title: string; subtitle: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; border: string }> = {
     churrasqueira: {
-      title: pageTitle || 'Churrasqueira na Brasa',
+      title: pageTitle || 'Espetos na Brasa',
       subtitle: 'Fila de espetinhos e grelhados em tempo real',
       icon: Flame,
       color: 'text-orange-400',
@@ -58,7 +58,7 @@ export const KitchenKdsPage: React.FC<KitchenKdsPageProps> = ({
       border: 'border-orange-500/40',
     },
     cozinha: {
-      title: pageTitle || 'Cozinha & Preparos',
+      title: pageTitle || 'Pratos & Cozinha',
       subtitle: 'Fila de pratos, porções, jantinhas e sobremesas',
       icon: ChefHat,
       color: 'text-amber-400',
@@ -74,8 +74,8 @@ export const KitchenKdsPage: React.FC<KitchenKdsPageProps> = ({
       border: 'border-cyan-500/40',
     },
     all: {
-      title: pageTitle || 'Produção Geral & KDS',
-      subtitle: 'Visão unificada de todos os setores e expedição',
+      title: pageTitle || 'Fila de Preparo & Pedidos (Central)',
+      subtitle: 'Todos os pedidos do site e garçom unificados em uma única fila',
       icon: Layers,
       color: 'text-purple-400',
       bg: 'bg-purple-600/20',

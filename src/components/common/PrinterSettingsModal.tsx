@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Printer,
   Bluetooth,
@@ -8,8 +9,6 @@ import {
   Play,
   Smartphone,
   Laptop,
-  Layers,
-  Sparkles,
   HelpCircle,
 } from 'lucide-react';
 import {
@@ -50,10 +49,11 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
       setPrintMethodState(getStoredPrintMethod());
       setBtConnected(isBluetoothConnected());
       setBtDeviceName(getBluetoothDeviceName());
+      setFeedbackMsg(null);
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const handleToggleAutoPrint = () => {
     const next = !autoPrint;
@@ -123,7 +123,7 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
     try {
       await testPrintDemo();
       setFeedbackMsg({
-        text: 'Comanda de teste enviada para impressão!',
+        text: 'Comanda de demonstração enviada para impressão!',
         type: 'success',
       });
       setTimeout(() => setFeedbackMsg(null), 3500);
@@ -135,52 +135,54 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-charcoal-900 border border-gray-700/80 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-gray-800">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div className="bg-charcoal-900 border border-gray-700/80 rounded-2xl max-w-lg w-full shadow-2xl relative my-auto flex flex-col max-h-[90vh] overflow-hidden">
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 bg-charcoal-900/95 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-purple-950/60 text-purple-400 border border-purple-800/60">
+            <div className="p-2 rounded-xl bg-purple-950/60 text-purple-400 border border-purple-800/60 flex-shrink-0">
               <Printer className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-white">Configurar Impressora Térmica</h2>
-              <p className="text-xs text-gray-400">Bluetooth, RawBT e Impressão Automática de Comandas</p>
+              <h2 className="text-base font-extrabold text-white leading-tight">Configurar Impressora Térmica</h2>
+              <p className="text-xs text-gray-400">Bluetooth, RawBT e Impressão de Comandas</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition flex-shrink-0"
+            title="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Feedback Alert */}
-        {feedbackMsg && (
-          <div
-            className={`mt-4 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
-              feedbackMsg.type === 'success'
-                ? 'bg-emerald-950/70 border border-emerald-700 text-emerald-300'
-                : 'bg-red-950/70 border border-red-700 text-red-300'
-            }`}
-          >
-            {feedbackMsg.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            )}
-            <span>{feedbackMsg.text}</span>
-          </div>
-        )}
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {/* Feedback Alert */}
+          {feedbackMsg && (
+            <div
+              className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fade-in ${
+                feedbackMsg.type === 'success'
+                  ? 'bg-emerald-950/70 border border-emerald-700 text-emerald-300'
+                  : 'bg-red-950/70 border border-red-700 text-red-300'
+              }`}
+            >
+              {feedbackMsg.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              )}
+              <span>{feedbackMsg.text}</span>
+            </div>
+          )}
 
-        <div className="mt-5 space-y-5">
           {/* 1. AUTO-PRINT TOGGLE */}
-          <div className="p-4 rounded-xl bg-charcoal-850 border border-gray-800 flex items-center justify-between gap-3">
-            <div>
+          <div className="p-3.5 rounded-xl bg-charcoal-850 border border-gray-800 flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">Impressão Automática</span>
+                <span className="text-xs sm:text-sm font-bold text-white">Impressão Automática de Comandas</span>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                     autoPrint
@@ -191,14 +193,14 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
                   {autoPrint ? 'Ativada' : 'Pausada'}
                 </span>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Ao receber um pedido do site ou QR Code, a comanda é enviada diretamente para a impressora.
+              <p className="text-[11px] text-gray-400 mt-0.5 leading-relaxed">
+                Ao receber pedidos do site, imprime a comanda na hora sem precisar clicar.
               </p>
             </div>
             <button
               type="button"
               onClick={handleToggleAutoPrint}
-              className={`w-13 h-7 rounded-full p-1 transition-colors flex items-center ${
+              className={`w-12 h-6 rounded-full p-0.5 transition-colors flex items-center flex-shrink-0 ${
                 autoPrint ? 'bg-emerald-600 justify-end' : 'bg-gray-700 justify-start'
               }`}
             >
@@ -208,79 +210,73 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
 
           {/* 2. PRINT METHOD SELECTION */}
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-2">
-              Método de Conexão com a Impressora
+            <label className="block text-xs font-bold text-gray-300 mb-1.5">
+              Método de Envio para a Impressora
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => handleChangePrintMethod('browser')}
-                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                   printMethod === 'browser'
                     ? 'bg-purple-950/40 border-purple-600 text-white shadow-sm'
                     : 'bg-charcoal-850 border-gray-800 text-gray-400 hover:border-gray-700'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <Laptop className="w-4 h-4 text-purple-400" />
-                  {printMethod === 'browser' && <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />}
+                <div className="flex items-center justify-between mb-1">
+                  <Laptop className="w-3.5 h-3.5 text-purple-400" />
+                  {printMethod === 'browser' && <CheckCircle2 className="w-3 h-3 text-purple-400" />}
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white">Navegador / PC</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">Windows / Kiosk silencioso</div>
-                </div>
+                <div className="text-[11px] font-bold text-white leading-tight">Navegador / PC</div>
+                <div className="text-[9px] text-gray-400 mt-0.5">Windows Kiosk</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleChangePrintMethod('bluetooth')}
-                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                   printMethod === 'bluetooth'
                     ? 'bg-blue-950/40 border-blue-600 text-white shadow-sm'
                     : 'bg-charcoal-850 border-gray-800 text-gray-400 hover:border-gray-700'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <Bluetooth className="w-4 h-4 text-blue-400" />
-                  {printMethod === 'bluetooth' && <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />}
+                <div className="flex items-center justify-between mb-1">
+                  <Bluetooth className="w-3.5 h-3.5 text-blue-400" />
+                  {printMethod === 'bluetooth' && <CheckCircle2 className="w-3 h-3 text-blue-400" />}
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white">Bluetooth Direto</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">Web Bluetooth ESC/POS</div>
-                </div>
+                <div className="text-[11px] font-bold text-white leading-tight">Bluetooth Direto</div>
+                <div className="text-[9px] text-gray-400 mt-0.5">Chrome ESC/POS</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleChangePrintMethod('rawbt')}
-                className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                   printMethod === 'rawbt'
                     ? 'bg-emerald-950/40 border-emerald-600 text-white shadow-sm'
                     : 'bg-charcoal-850 border-gray-800 text-gray-400 hover:border-gray-700'
                 }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <Smartphone className="w-4 h-4 text-emerald-400" />
-                  {printMethod === 'rawbt' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                <div className="flex items-center justify-between mb-1">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                  {printMethod === 'rawbt' && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                 </div>
-                <div>
-                  <div className="text-xs font-bold text-white">App RawBT</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">Padrão Android celular</div>
-                </div>
+                <div className="text-[11px] font-bold text-white leading-tight">App RawBT</div>
+                <div className="text-[9px] text-gray-400 mt-0.5">Celular Android</div>
               </button>
             </div>
           </div>
 
-          {/* 3. BLUETOOTH PAIRING SECTION (If Bluetooth or supported) */}
-          <div className="p-4 rounded-xl bg-charcoal-850 border border-gray-800 space-y-3">
+          {/* 3. BLUETOOTH PAIRING & STATUS */}
+          <div className="p-3.5 rounded-xl bg-charcoal-850 border border-gray-800 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bluetooth className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-bold text-white">Status da Conexão Bluetooth</span>
+                <span className="text-xs font-bold text-white">Status Bluetooth</span>
               </div>
               {btConnected ? (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
-                  Conectada
+                  ● Conectada {btDeviceName ? `(${btDeviceName})` : ''}
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full bg-gray-700/40 text-gray-400 border border-gray-700 text-[10px] font-bold">
@@ -289,13 +285,7 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
               )}
             </div>
 
-            {btConnected && btDeviceName && (
-              <p className="text-xs text-gray-300">
-                Dispositivo pareado: <strong className="text-blue-300">{btDeviceName}</strong>
-              </p>
-            )}
-
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-2">
               {!btConnected ? (
                 <button
                   type="button"
@@ -304,13 +294,13 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
                   className="flex-1 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/30 transition"
                 >
                   <Bluetooth className="w-3.5 h-3.5" />
-                  <span>{isConnectingBt ? 'Buscando impressora...' : 'Parear Impressora Bluetooth'}</span>
+                  <span>{isConnectingBt ? 'Buscando...' : 'Parear Impressora Bluetooth'}</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleDisconnectBluetooth}
-                  className="py-2 px-3 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-800 text-xs font-bold transition"
+                  className="py-1.5 px-3 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-800 text-xs font-bold transition"
                 >
                   Desconectar
                 </button>
@@ -319,8 +309,8 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
               <button
                 type="button"
                 onClick={handleTestPrint}
-                className="py-2 px-3 rounded-xl bg-charcoal-750 hover:bg-gray-700 text-gray-200 border border-gray-600 text-xs font-bold flex items-center gap-1.5 transition"
-                title="Imprime um cupom de demonstração para testar tamanho e margem"
+                className="py-2 px-3 rounded-xl bg-charcoal-750 hover:bg-gray-700 text-gray-200 border border-gray-600 text-xs font-bold flex items-center gap-1.5 transition flex-shrink-0"
+                title="Imprime um cupom de demonstração"
               >
                 <Play className="w-3 h-3 text-emerald-400" />
                 <span>Testar Impressão</span>
@@ -330,7 +320,7 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
 
           {/* 4. PAPER WIDTH SELECTION */}
           <div>
-            <label className="block text-xs font-bold text-gray-300 mb-2">
+            <label className="block text-xs font-bold text-gray-300 mb-1.5">
               Largura da Bobina Térmica
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -343,38 +333,46 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
                   key={w.id}
                   type="button"
                   onClick={() => handleChangePaperWidth(w.id as PaperWidth)}
-                  className={`py-2 px-2.5 rounded-xl border text-center transition ${
+                  className={`py-2 px-2 rounded-xl border text-center transition ${
                     paperWidth === w.id
                       ? 'bg-purple-900/40 border-purple-500 text-white font-bold'
                       : 'bg-charcoal-850 border-gray-800 text-gray-400 hover:text-gray-200'
                   }`}
                 >
-                  <div className="text-xs">{w.label}</div>
-                  <div className="text-[10px] text-gray-500 mt-0.5">{w.sub}</div>
+                  <div className="text-[11px]">{w.label}</div>
+                  <div className="text-[9px] text-gray-500 mt-0.5">{w.sub}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 5. PRACTICAL GUIDE FOR THE LADIES */}
-          <div className="p-3.5 rounded-xl bg-purple-950/30 border border-purple-800/40 text-xs text-purple-200/90 space-y-2">
+          {/* 5. PRACTICAL GUIDE */}
+          <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-800/40 text-[11px] text-purple-200/90 space-y-1.5">
             <div className="flex items-center gap-1.5 font-bold text-purple-300">
-              <HelpCircle className="w-4 h-4 text-purple-400" />
-              <span>Como funciona na prática no espetinho:</span>
+              <HelpCircle className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+              <span>Dicas de uso:</span>
             </div>
-            <ul className="list-disc pl-4 space-y-1 text-[11px] text-gray-300">
+            <ul className="list-disc pl-4 space-y-0.5 text-[10.5px] text-gray-300">
               <li>
-                <strong>No Celular Android com Bluetooth:</strong> Basta instalar o app gratuito <em>RawBT</em> ou conectar pelo botão azul acima no Google Chrome. Quando o cliente pedir no site, a bobina imprime na hora!
+                <strong>Android / Celular:</strong> Use o botão azul acima no Chrome ou instale o app <em>RawBT</em> para imprimir sem tocar em nada.
               </li>
               <li>
-                <strong>No Computador / Notebook do Caixa:</strong> Pareie a impressora no Windows via Bluetooth e deixe o Chrome aberto. Com o modo quiosque (<em>--kiosk-printing</em>), o papel sai silencioso em menos de 1 segundo sem nenhuma janela.
+                <strong>PC / Notebook:</strong> No Chrome com o atalho quiosque (<em>--kiosk-printing</em>), a comanda é impressa instantaneamente.
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-gray-800 flex justify-end">
+        {/* Fixed Footer */}
+        <div className="px-5 py-3 border-t border-gray-800 bg-charcoal-900/95 flex items-center justify-between flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleTestPrint}
+            className="text-xs text-purple-400 hover:text-purple-300 underline font-semibold flex items-center gap-1"
+          >
+            <Play className="w-3 h-3 text-emerald-400" />
+            <span>Testar agora</span>
+          </button>
           <button
             type="button"
             onClick={onClose}
@@ -384,6 +382,7 @@ export const PrinterSettingsModal: React.FC<PrinterSettingsModalProps> = ({ isOp
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

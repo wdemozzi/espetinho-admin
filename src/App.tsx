@@ -143,14 +143,8 @@ function AdminAppContent() {
         {currentView === 'cardapio' && (
           <AdminDashboard initialTab="products" />
         )}
-        {currentView === 'churrasqueira' && (
-          <KitchenKdsPage initialSector="churrasqueira" pageTitle="Churrasqueira na Brasa" />
-        )}
-        {currentView === 'cozinha' && (
-          <KitchenKdsPage initialSector="cozinha" pageTitle="Cozinha & Preparos" />
-        )}
-        {currentView === 'bar' && (
-          <KitchenKdsPage initialSector="bar" pageTitle="Bar & Bebidas" />
+        {(currentView === 'cozinha' || currentView === 'churrasqueira' || currentView === 'bar') && (
+          <KitchenKdsPage initialSector="all" pageTitle="Fila de Preparo & Pedidos (Central)" />
         )}
         {currentView === 'caixa' && <CashierTabsPage initialTabId={cashierInitialTabId} />}
         {currentView === 'admin' && <AdminDashboard initialTab="products" />}

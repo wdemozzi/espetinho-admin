@@ -88,9 +88,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
 
   // Secondary tools tucked into "Mais Opções" dropdown so screen stays clean
   const secondaryNavItems = [
-    { id: 'churrasqueira', label: 'Churrasqueira na Brasa', icon: Flame, role: 'garcom' },
-    { id: 'cozinha', label: 'Cozinha & Preparos', icon: ChefHat, role: 'garcom' },
-    { id: 'bar', label: 'Bar & Bebidas', icon: Beer, role: 'garcom' },
+    { id: 'cozinha', label: 'Fila de Preparo & Pedidos (Central)', icon: ChefHat, role: 'garcom' },
     { id: 'admin', label: 'Painel & Relatórios', icon: ShieldCheck, role: 'admin' },
   ];
 
@@ -194,28 +192,24 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
               </button>
 
               {isMoreMenuOpen && (
-                <div className="absolute left-0 mt-2 w-56 rounded-xl bg-charcoal-900 border border-gray-700 shadow-2xl py-2 z-50 animate-fade-in">
+                <div className="absolute left-0 mt-2 w-64 rounded-xl bg-charcoal-900 border border-gray-700 shadow-2xl py-2 z-50 animate-fade-in">
                   <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
-                    Monitores de Preparo (KDS)
+                    Produção & Cozinha
                   </div>
-                  {secondaryNavItems.slice(0, 3).map((item) => {
-                    const Icon = item.icon;
-                    const isActive = currentView === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavClick(item.id)}
-                        className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-left transition ${
-                          isActive
-                            ? 'bg-purple-950/60 text-purple-300 border-l-2 border-purple-500'
-                            : 'text-gray-300 hover:bg-charcoal-800 hover:text-white'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4 text-gray-400" />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
+                  <button
+                    onClick={() => handleNavClick('cozinha')}
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-semibold text-left transition ${
+                      currentView === 'cozinha' || currentView === 'churrasqueira' || currentView === 'bar'
+                        ? 'bg-purple-950/60 text-purple-300 border-l-2 border-purple-500'
+                        : 'text-gray-300 hover:bg-charcoal-800 hover:text-white'
+                    }`}
+                  >
+                    <ChefHat className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                    <div>
+                      <div className="font-bold text-white">Fila de Preparo (Central)</div>
+                      <div className="text-[10px] text-gray-400">Todos os pedidos unificados</div>
+                    </div>
+                  </button>
 
                   <div className="border-t border-gray-800 my-1.5"></div>
                   <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
@@ -223,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
                   </div>
                   <button
                     onClick={() => handleNavClick('admin')}
-                    className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-left transition ${
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-left transition ${
                       currentView === 'admin'
                         ? 'bg-purple-950/60 text-purple-300 border-l-2 border-purple-500'
                         : 'text-gray-300 hover:bg-charcoal-800 hover:text-white'
@@ -418,20 +412,17 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
               </button>
             </div>
             <div className="py-2 space-y-1">
-              <div className="text-[10px] uppercase font-bold text-gray-500 py-1">KDS de Preparo</div>
-              {secondaryNavItems.slice(0, 3).map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-charcoal-850 text-gray-200 text-xs font-bold text-left hover:bg-gray-800"
-                  >
-                    <Icon className="w-4 h-4 text-purple-400" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
+              <div className="text-[10px] uppercase font-bold text-gray-500 py-1">Produção & Cozinha</div>
+              <button
+                onClick={() => handleNavClick('cozinha')}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-charcoal-850 text-gray-200 text-xs font-bold text-left hover:bg-gray-800"
+              >
+                <ChefHat className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                <div>
+                  <div className="text-white font-bold">Fila de Preparo & Pedidos (Central)</div>
+                  <div className="text-[10px] text-gray-400">Todos os pedidos unificados</div>
+                </div>
+              </button>
               <div className="text-[10px] uppercase font-bold text-gray-500 py-1 pt-2">Administração Completa</div>
               <button
                 onClick={() => handleNavClick('admin')}
