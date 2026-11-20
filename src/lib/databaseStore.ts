@@ -2565,6 +2565,7 @@ class DatabaseStore {
   private cashShifts: CashShift[] = [];
   private listeners: Set<Listener> = new Set();
   private orderReadyListeners: Set<(alert: OrderReadyAlertData) => void> = new Set();
+  private newOrderListeners: Set<(order: Order, tab?: Tab) => void> = new Set();
   private nextOrderNumber: number = 101;
   private deletedProductIds: Set<string> = new Set();
 
@@ -2738,6 +2739,7 @@ class DatabaseStore {
         }
         this.persist();
         this.notify();
+        this.notifyNewOrder(remoteOrder, remoteTab);
       },
       onRemoteItemStatusUpdated: (itemId, newStatus) => {
         for (const order of this.orders) {
@@ -2949,6 +2951,17 @@ class DatabaseStore {
   public notifyOrderReady(alert: OrderReadyAlertData) {
     this.orderReadyListeners.forEach((fn) => {
       try { fn(alert); } catch {}
+    });
+  }
+
+  public onNewOrder(listener: (order: Order, tab?: Tab) => void): () => void {
+    this.newOrderListeners.add(listener);
+    return () => this.newOrderListeners.delete(listener);
+  }
+
+  public notifyNewOrder(order: Order, tab?: Tab) {
+    this.newOrderListeners.forEach((fn) => {
+      try { fn(order, tab); } catch (err) { console.error('Erro no listener onNewOrder:', err); }
     });
   }
 
@@ -3801,6 +3814,7 @@ class DatabaseStore {
     soundService.playSuccessDing();
     this.persist();
     this.notify();
+    this.notifyNewOrder(newOrder, targetTab);
 
     // Broadcast in real-time to other devices (Kitchen KDS, Cashier, Waiter phones)
     supabaseSync.broadcastOrder(newOrder, targetTab ? sanitizeTab(targetTab) : undefined);

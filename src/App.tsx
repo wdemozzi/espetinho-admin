@@ -9,6 +9,9 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { OperatorSwitchModal } from './components/common/OperatorSwitchModal';
 import { StaffLoginTerminal } from './components/common/StaffLoginTerminal';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
+import { db } from './lib/databaseStore';
+import { isAutoPrintEnabled, printOrderTicket } from './lib/thermalPrinter';
+import { Printer } from 'lucide-react';
 
 function AdminAppContent() {
   const { currentUser } = useAuth();
@@ -21,6 +24,25 @@ function AdminAppContent() {
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState<boolean>(false);
   const [currentView, setCurrentView] = useState<string>('garcom');
   const [cashierInitialTabId, setCashierInitialTabId] = useState<string | undefined>(undefined);
+  const [printToast, setPrintToast] = useState<{ message: string; orderNumber: number } | null>(null);
+
+  // Escuta novos pedidos recebidos do site ou garçom para disparar a impressão automática de comanda
+  useEffect(() => {
+    return db.onNewOrder((newOrder, tab) => {
+      if (isAutoPrintEnabled()) {
+        try {
+          printOrderTicket(newOrder, tab);
+          setPrintToast({
+            message: `Pedido #${newOrder.order_number} enviado para a impressora!`,
+            orderNumber: newOrder.order_number,
+          });
+          setTimeout(() => setPrintToast(null), 5000);
+        } catch (err) {
+          console.error('[AutoPrint] Erro ao imprimir comanda do pedido:', err);
+        }
+      }
+    });
+  }, []);
 
   // Parse path / query for default view (e.g. /admin, /cozinha, /caixa, /garcom)
   // and redirect customer requests (e.g. ?mesa=... or ?view=cardapio) to the public customer app
@@ -101,9 +123,25 @@ function AdminAppContent() {
         onLockOrExit={handleLockSession}
       />
 
+      {/* Floating Auto-Print Notification Toast */}
+      {printToast && (
+        <div className="fixed top-18 right-4 z-50 bg-emerald-950/95 border border-emerald-500/80 text-emerald-200 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in backdrop-blur-md">
+          <div className="p-2 rounded-xl bg-emerald-600/30 text-emerald-300">
+            <Printer className="w-5 h-5 animate-bounce" />
+          </div>
+          <div>
+            <div className="text-xs font-black text-white">Comanda Impressa Automaticamente!</div>
+            <div className="text-[11px] text-emerald-300 font-medium">{printToast.message}</div>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
         {currentView === 'garcom' && (
           <WaiterTablesPage onNavigateToCashier={handleNavigateToCashier} />
+        )}
+        {currentView === 'cardapio' && (
+          <AdminDashboard initialTab="products" />
         )}
         {currentView === 'churrasqueira' && (
           <KitchenKdsPage initialSector="churrasqueira" pageTitle="Churrasqueira na Brasa" />
@@ -115,7 +153,7 @@ function AdminAppContent() {
           <KitchenKdsPage initialSector="bar" pageTitle="Bar & Bebidas" />
         )}
         {currentView === 'caixa' && <CashierTabsPage initialTabId={cashierInitialTabId} />}
-        {currentView === 'admin' && <AdminDashboard />}
+        {currentView === 'admin' && <AdminDashboard initialTab="products" />}
       </main>
 
       <footer className="bg-charcoal-900 border-t border-gray-800/80 py-4 px-6 text-center text-xs text-gray-500">

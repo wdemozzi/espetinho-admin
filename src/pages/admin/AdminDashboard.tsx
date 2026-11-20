@@ -60,8 +60,19 @@ import {
 
 type PeriodFilter = 'today' | 'yesterday' | 'month' | 'year' | 'all' | 'custom';
 
-export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'stock' | 'clients' | 'products' | 'tables' | 'users' | 'cloud'>('overview');
+export interface AdminDashboardProps {
+  initialTab?: 'overview' | 'stock' | 'clients' | 'products' | 'tables' | 'users' | 'cloud';
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialTab = 'products' }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'stock' | 'clients' | 'products' | 'tables' | 'users' | 'cloud'>(initialTab);
+  const [isAdvancedModulesOpen, setIsAdvancedModulesOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [products, setProducts] = useState<Product[]>(db.getProducts());
   const [tables, setTables] = useState<RestaurantTable[]>(db.getTables());
   const [categories, setCategories] = useState<Category[]>(db.getCategories());
@@ -945,101 +956,162 @@ END $$;`;
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 bg-charcoal-900 p-1 rounded-xl border border-gray-700 overflow-x-auto w-full md:w-auto">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'overview'
-                ? 'bg-charcoal-800 text-purple-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Relatórios & Vendas</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('stock')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'stock'
-                ? 'bg-charcoal-800 text-amber-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <Boxes className="w-3.5 h-3.5" />
-            <span>Controle de Estoque</span>
-            {lowStockCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/40">
-                {lowStockCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('clients')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'clients'
-                ? 'bg-charcoal-800 text-pink-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Clientes & Marketing</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 text-[10px] font-mono font-bold border border-pink-500/40">
-              {leadsState.length}
-            </span>
-          </button>
+        {/* Simplified Tab Switcher: Primary Focus on Cardápio & Mesas + Clean Dropdown for Advanced Modules */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-charcoal-900 p-1.5 rounded-xl border border-gray-700 w-full md:w-auto">
+          {/* 1. Cardápio & Produtos (Primary) */}
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap shadow-sm ${
               activeTab === 'products'
-                ? 'bg-charcoal-800 text-ember-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
+                ? 'bg-purple-600 text-white shadow-purple-600/30 ring-1 ring-purple-400'
+                : 'text-gray-300 hover:text-white hover:bg-gray-800/80'
             }`}
           >
-            <Package className="w-3.5 h-3.5" />
+            <Package className="w-4 h-4 flex-shrink-0" />
             <span>Cardápio & Produtos</span>
           </button>
+
+          {/* 2. Mesas & QR Codes (Primary) */}
           <button
             onClick={() => setActiveTab('tables')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg text-xs font-extrabold transition flex items-center gap-2 whitespace-nowrap shadow-sm ${
               activeTab === 'tables'
-                ? 'bg-charcoal-800 text-emerald-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
+                ? 'bg-emerald-600 text-white shadow-emerald-600/30 ring-1 ring-emerald-400'
+                : 'text-gray-300 hover:text-white hover:bg-gray-800/80'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
+            <Layers className="w-4 h-4 flex-shrink-0" />
             <span>Mesas & QR Codes</span>
           </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'users'
-                ? 'bg-charcoal-800 text-blue-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Equipe & Perfis</span>
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('cloud');
-              setSyncStatus(supabaseSync.getStatus());
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'cloud'
-                ? 'bg-charcoal-800 text-cyan-400 shadow'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            <Cloud className="w-3.5 h-3.5" />
-            <span>Nuvem & Supabase</span>
-            {syncStatus.isConfigured ? (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
+
+          {/* 3. Dropdown para Outros Módulos (Vendas, Estoque, Clientes, Equipe, Nuvem) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsAdvancedModulesOpen(!isAdvancedModulesOpen)}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                ['overview', 'stock', 'clients', 'users', 'cloud'].includes(activeTab) || isAdvancedModulesOpen
+                  ? 'bg-charcoal-750 text-purple-300 border border-purple-800/60'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              }`}
+              title="Acessar Vendas, Estoque, Clientes, Equipe e Nuvem"
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>
+                {activeTab === 'overview'
+                  ? 'Vendas & Relatórios'
+                  : activeTab === 'stock'
+                  ? 'Estoque'
+                  : activeTab === 'clients'
+                  ? 'Clientes'
+                  : activeTab === 'users'
+                  ? 'Equipe'
+                  : activeTab === 'cloud'
+                  ? 'Nuvem'
+                  : 'Outros Módulos'}
+              </span>
+              <span className="text-[10px] opacity-70">▼</span>
+            </button>
+
+            {isAdvancedModulesOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl bg-charcoal-850 border border-gray-700 shadow-2xl py-1.5 z-50 animate-fade-in">
+                <button
+                  onClick={() => {
+                    setActiveTab('overview');
+                    setIsAdvancedModulesOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-left transition ${
+                    activeTab === 'overview'
+                      ? 'bg-purple-950/60 text-purple-300 border-l-2 border-purple-500'
+                      : 'text-gray-300 hover:bg-charcoal-750 hover:text-white'
+                  }`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Relatórios & Vendas</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('stock');
+                    setIsAdvancedModulesOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-left transition ${
+                    activeTab === 'stock'
+                      ? 'bg-amber-950/60 text-amber-300 border-l-2 border-amber-500'
+                      : 'text-gray-300 hover:bg-charcoal-750 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Boxes className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Controle de Estoque</span>
+                  </div>
+                  {lowStockCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold">
+                      {lowStockCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('clients');
+                    setIsAdvancedModulesOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-left transition ${
+                    activeTab === 'clients'
+                      ? 'bg-pink-950/60 text-pink-300 border-l-2 border-pink-500'
+                      : 'text-gray-300 hover:bg-charcoal-750 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="w-3.5 h-3.5 text-pink-400" />
+                    <span>Clientes & Marketing</span>
+                  </div>
+                  <span className="px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 text-[10px] font-mono font-bold">
+                    {leadsState.length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('users');
+                    setIsAdvancedModulesOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-left transition ${
+                    activeTab === 'users'
+                      ? 'bg-blue-950/60 text-blue-300 border-l-2 border-blue-500'
+                      : 'text-gray-300 hover:bg-charcoal-750 hover:text-white'
+                  }`}
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Equipe & Perfis</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('cloud');
+                    setSyncStatus(supabaseSync.getStatus());
+                    setIsAdvancedModulesOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-left transition ${
+                    activeTab === 'cloud'
+                      ? 'bg-cyan-950/60 text-cyan-300 border-l-2 border-cyan-500'
+                      : 'text-gray-300 hover:bg-charcoal-750 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Cloud className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Nuvem & Supabase</span>
+                  </div>
+                  {syncStatus.isConfigured ? (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  ) : (
+                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  )}
+                </button>
+              </div>
             )}
-          </button>
+          </div>
         </div>
       </div>
 

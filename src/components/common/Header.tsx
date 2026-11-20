@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Flame,
@@ -11,17 +11,22 @@ import {
   ExternalLink,
   Volume2,
   Lock,
-  UserCheck,
   LogOut,
   BellRing,
   Copy,
   Check,
-  Share2,
+  Package,
+  Printer,
+  ChevronDown,
+  Sparkles,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { soundService } from '../../lib/sound';
 import { db } from '../../lib/databaseStore';
+import { isAutoPrintEnabled } from '../../lib/thermalPrinter';
 import { OperatorSwitchModal } from './OperatorSwitchModal';
 import { ExpeditionModal } from './ExpeditionModal';
+import { PrinterSettingsModal } from './PrinterSettingsModal';
 import { getPublicCustomerUrl } from '../../lib/subdomain';
 
 interface HeaderProps {
@@ -35,14 +40,31 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
   const [time, setTime] = useState<string>('');
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState<boolean>(false);
   const [isExpeditionOpen, setIsExpeditionOpen] = useState<boolean>(false);
+  const [isPrinterModalOpen, setIsPrinterModalOpen] = useState<boolean>(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState<boolean>(false);
   const [readyCount, setReadyCount] = useState<number>(() => db.getReadyOrders().length);
   const [pendingRestrictedView, setPendingRestrictedView] = useState<string | null>(null);
   const [copiedBioToast, setCopiedBioToast] = useState<boolean>(false);
+  const [autoPrintActive, setAutoPrintActive] = useState<boolean>(isAutoPrintEnabled());
+
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return db.subscribe(() => {
       setReadyCount(db.getReadyOrders().length);
+      setAutoPrintActive(isAutoPrintEnabled());
     });
+  }, []);
+
+  // Close "Mais" dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -57,17 +79,23 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
     return () => clearInterval(interval);
   }, []);
 
-  // Clean, short, single-line navigation labels that NEVER wrap
-  const navItems = [
-    { id: 'garcom', label: 'Mesas', icon: UtensilsCrossed, minRole: 'garcom' },
-    { id: 'churrasqueira', label: 'Churrasqueira', icon: Flame, minRole: 'garcom' },
-    { id: 'cozinha', label: 'Cozinha', icon: ChefHat, minRole: 'garcom' },
-    { id: 'bar', label: 'Bebidas', icon: Beer, minRole: 'garcom' },
-    { id: 'caixa', label: 'Caixa', icon: Receipt, minRole: 'caixa' },
-    { id: 'admin', label: 'Gestão', icon: ShieldCheck, minRole: 'admin' },
+  // 3 Primary Focused Views requested by client: Mesas, Cardápio, Fechar Comanda
+  const primaryNavItems = [
+    { id: 'garcom', label: 'Mesas', icon: UtensilsCrossed },
+    { id: 'cardapio', label: 'Cardápio', icon: Package },
+    { id: 'caixa', label: 'Fechar Comanda', icon: Receipt },
+  ];
+
+  // Secondary tools tucked into "Mais Opções" dropdown so screen stays clean
+  const secondaryNavItems = [
+    { id: 'churrasqueira', label: 'Churrasqueira na Brasa', icon: Flame, role: 'garcom' },
+    { id: 'cozinha', label: 'Cozinha & Preparos', icon: ChefHat, role: 'garcom' },
+    { id: 'bar', label: 'Bar & Bebidas', icon: Beer, role: 'garcom' },
+    { id: 'admin', label: 'Painel & Relatórios', icon: ShieldCheck, role: 'admin' },
   ];
 
   const handleNavClick = (viewId: string) => {
+    setIsMoreMenuOpen(false);
     if (viewId === 'admin' && currentUser.role !== 'admin') {
       setPendingRestrictedView(viewId);
       setIsSwitchModalOpen(true);
@@ -80,6 +108,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
     }
     onNavigate(viewId);
   };
+
+  const isSecondaryActive = secondaryNavItems.some((item) => item.id === currentView);
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
@@ -121,23 +151,22 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
             </div>
           </div>
 
-          {/* Nav links (Desktop - Horizontal, single line, no wrapping) */}
-          <nav className="hidden md:flex items-center gap-1 bg-charcoal-850 p-1.5 rounded-xl border border-gray-800 flex-shrink-0">
-            {navItems.map((item) => {
+          {/* SIMPLIFIED FOCUSED NAVIGATION (Desktop: 3 Main Choices + Discreet Dropdown) */}
+          <nav className="hidden md:flex items-center gap-1.5 bg-charcoal-850 p-1.5 rounded-xl border border-gray-800 flex-shrink-0">
+            {primaryNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.id;
               const isLocked =
-                (item.id === 'admin' && currentUser.role !== 'admin') ||
-                (item.id === 'caixa' && currentUser.role !== 'admin' && currentUser.role !== 'caixa');
+                item.id === 'caixa' && currentUser.role !== 'admin' && currentUser.role !== 'caixa';
 
               return (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-extrabold whitespace-nowrap transition-all shadow-sm ${
                     isActive
-                      ? 'bg-ember-600 text-white shadow-md shadow-ember-700/30'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+                      ? 'bg-purple-600 text-white shadow-purple-600/30 ring-1 ring-purple-400'
+                      : 'text-gray-300 hover:text-white hover:bg-gray-800/80'
                   }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
@@ -146,9 +175,72 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
                 </button>
               );
             })}
+
+            {/* "Mais Opções" Discreet Dropdown */}
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  isSecondaryActive || isMoreMenuOpen
+                    ? 'bg-charcoal-750 text-purple-300 border border-purple-800/60'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+                }`}
+                title="Cozinha KDS, Churrasqueira, Bar e Relatórios Avançados"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Mais</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isMoreMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isMoreMenuOpen && (
+                <div className="absolute left-0 mt-2 w-56 rounded-xl bg-charcoal-900 border border-gray-700 shadow-2xl py-2 z-50 animate-fade-in">
+                  <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                    Monitores de Preparo (KDS)
+                  </div>
+                  {secondaryNavItems.slice(0, 3).map((item) => {
+                    const Icon = item.icon;
+                    const isActive = currentView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNavClick(item.id)}
+                        className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-left transition ${
+                          isActive
+                            ? 'bg-purple-950/60 text-purple-300 border-l-2 border-purple-500'
+                            : 'text-gray-300 hover:bg-charcoal-800 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 text-gray-400" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+
+                  <div className="border-t border-gray-800 my-1.5"></div>
+                  <div className="px-3 py-1 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                    Administração Avançada
+                  </div>
+                  <button
+                    onClick={() => handleNavClick('admin')}
+                    className={`w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-left transition ${
+                      currentView === 'admin'
+                        ? 'bg-purple-950/60 text-purple-300 border-l-2 border-purple-500'
+                        : 'text-gray-300 hover:bg-charcoal-800 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ShieldCheck className="w-4 h-4 text-purple-400" />
+                      <span>Painel & Relatórios</span>
+                    </div>
+                    {currentUser.role !== 'admin' && <Lock className="w-3 h-3 text-gray-500" />}
+                  </button>
+                </div>
+              )}
+            </div>
           </nav>
 
-          {/* Quick Actions & Operator Badge */}
+          {/* Quick Actions, Bluetooth Thermal Printer & Operator Badge */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* EXPEDITION READY ALERT BUTTON */}
             {readyCount > 0 && (
@@ -163,6 +255,28 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
               </button>
             )}
 
+            {/* QUICK THERMAL / BLUETOOTH PRINTER BUTTON */}
+            <button
+              type="button"
+              onClick={() => setIsPrinterModalOpen(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition shadow-sm ${
+                autoPrintActive
+                  ? 'bg-emerald-950/60 hover:bg-emerald-900/70 text-emerald-300 border-emerald-700/80 shadow-emerald-900/30'
+                  : 'bg-charcoal-800 hover:bg-charcoal-700 text-gray-400 border-gray-700'
+              }`}
+              title="Configurar Impressora Bluetooth e Impressão Automática de Comandas"
+            >
+              <div className="relative">
+                <Printer className="w-4 h-4 text-purple-300" />
+                {autoPrintActive && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                )}
+              </div>
+              <span className="hidden lg:inline text-[11px]">
+                {autoPrintActive ? 'Auto-Print On' : 'Impressora'}
+              </span>
+            </button>
+
             {/* Audio test button */}
             <button
               onClick={() => soundService.playOrderReady()}
@@ -172,9 +286,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
               <Volume2 className="w-4 h-4 text-ember-400" />
             </button>
 
-            {/* Public Catalog Link (Opens in new tab exactly as customer sees it) */}
-            {/* Public Catalog Link (Opens in new tab exactly as customer sees it) */}
-            <div className="hidden lg:flex items-center">
+            {/* Public Catalog Link (Cardápio Bio) */}
+            <div className="hidden xl:flex items-center">
               <button
                 type="button"
                 onClick={() => window.open(getPublicCustomerUrl(), '_blank')}
@@ -241,42 +354,109 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
         </div>
       </div>
 
-      {/* Mobile Navigation Bar */}
-      <div className="flex md:hidden items-center justify-around bg-charcoal-850 border-t border-gray-800 px-2 py-1.5">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentView === item.id;
-          const isLocked =
-            (item.id === 'admin' && currentUser.role !== 'admin') ||
-            (item.id === 'caixa' && currentUser.role !== 'admin' && currentUser.role !== 'caixa');
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleNavClick(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-md text-[11px] font-medium transition ${
-                isActive ? 'text-ember-400 font-bold' : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              <div className="relative">
-                <Icon className="w-4 h-4" />
-                {isLocked && (
-                  <Lock className="w-2.5 h-2.5 absolute -top-1 -right-1.5 text-amber-400" />
-                )}
-              </div>
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+      {/* Mobile Navigation Bar: Clean 3 Pillars + Printer + More */}
+      <div className="flex md:hidden items-center justify-around bg-charcoal-850 border-t border-gray-800 px-2 py-2">
         <button
-          onClick={() => window.open(getPublicCustomerUrl(), '_blank')}
-          title="Ver Cardápio Público em Nova Aba"
-          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md text-[11px] font-medium text-gray-400 hover:text-purple-300 transition"
+          onClick={() => handleNavClick('garcom')}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+            currentView === 'garcom' ? 'text-purple-400 bg-purple-950/40' : 'text-gray-400 hover:text-gray-200'
+          }`}
         >
-          <Smartphone className="w-4 h-4" />
+          <UtensilsCrossed className="w-4 h-4" />
+          <span>Mesas</span>
+        </button>
+
+        <button
+          onClick={() => handleNavClick('cardapio')}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+            currentView === 'cardapio' || currentView === 'admin' ? 'text-purple-400 bg-purple-950/40' : 'text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          <Package className="w-4 h-4" />
           <span>Cardápio</span>
         </button>
+
+        <button
+          onClick={() => handleNavClick('caixa')}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+            currentView === 'caixa' ? 'text-purple-400 bg-purple-950/40' : 'text-gray-400 hover:text-gray-200'
+          }`}
+        >
+          <Receipt className="w-4 h-4" />
+          <span>Fechar Comanda</span>
+        </button>
+
+        <button
+          onClick={() => setIsPrinterModalOpen(true)}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+            autoPrintActive ? 'text-emerald-400' : 'text-gray-400'
+          }`}
+        >
+          <Printer className="w-4 h-4" />
+          <span>Impressora</span>
+        </button>
+
+        <button
+          onClick={() => setIsMoreMenuOpen(true)}
+          className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-bold transition ${
+            isSecondaryActive ? 'text-purple-400' : 'text-gray-400'
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          <span>Mais</span>
+        </button>
       </div>
+
+      {/* Mobile "Mais Opções" Sheet Modal */}
+      {isMoreMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden bg-black/80 flex flex-col justify-end animate-fade-in">
+          <div className="bg-charcoal-900 border-t border-gray-700 rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+              <span className="font-extrabold text-sm text-white">Outros Módulos Operacionais</span>
+              <button onClick={() => setIsMoreMenuOpen(false)} className="text-gray-400 p-1">
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="py-2 space-y-1">
+              <div className="text-[10px] uppercase font-bold text-gray-500 py-1">KDS de Preparo</div>
+              {secondaryNavItems.slice(0, 3).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-charcoal-850 text-gray-200 text-xs font-bold text-left hover:bg-gray-800"
+                  >
+                    <Icon className="w-4 h-4 text-purple-400" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+              <div className="text-[10px] uppercase font-bold text-gray-500 py-1 pt-2">Administração Completa</div>
+              <button
+                onClick={() => handleNavClick('admin')}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-charcoal-850 text-gray-200 text-xs font-bold text-left hover:bg-gray-800"
+              >
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="w-4 h-4 text-purple-400" />
+                  <span>Painel & Relatórios</span>
+                </div>
+                {currentUser.role !== 'admin' && <Lock className="w-3.5 h-3.5 text-gray-500" />}
+              </button>
+              <button
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  window.open(getPublicCustomerUrl(), '_blank');
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-purple-950/40 text-purple-300 text-xs font-bold text-left border border-purple-800/40 mt-2"
+              >
+                <Smartphone className="w-4 h-4" />
+                <span>Ver Cardápio Público</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PIN Authentication & Operator Switcher Modal */}
       {isSwitchModalOpen && (
@@ -300,6 +480,15 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onLockO
       <ExpeditionModal
         isOpen={isExpeditionOpen}
         onClose={() => setIsExpeditionOpen(false)}
+      />
+
+      {/* Thermal & Bluetooth Printer Settings Modal */}
+      <PrinterSettingsModal
+        isOpen={isPrinterModalOpen}
+        onClose={() => {
+          setIsPrinterModalOpen(false);
+          setAutoPrintActive(isAutoPrintEnabled());
+        }}
       />
     </header>
   );
