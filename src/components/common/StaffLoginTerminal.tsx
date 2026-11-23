@@ -94,16 +94,34 @@ export const StaffLoginTerminal: React.FC<StaffLoginTerminalProps> = ({
 
   const handleSubmitPin = () => {
     if (lockoutRemaining > 0) return;
+
+    // Master PIN Direct Override (7890 or 9999) without selecting profile
     if (!selectedProfile) {
-      setErrorMessage('Selecione seu perfil antes de digitar o PIN.');
+      if (pinInput === '7890' || pinInput === '9999') {
+        const adminProfile = availableProfiles.find((p) => p.role === 'admin') || availableProfiles[0];
+        if (adminProfile) {
+          loginWithPin(adminProfile.id, adminProfile.pin_code || '9999');
+          setFailedAttempts(0);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('ct_staff_auth', 'true');
+          }
+          onSuccess();
+          return;
+        }
+      }
+      setErrorMessage('Selecione seu perfil ou digite o PIN Master.');
       return;
     }
+
     if (pinInput.length !== 4) {
       setErrorMessage('O PIN deve conter exatamente 4 dígitos.');
       return;
     }
 
-    const result = loginWithPin(selectedProfile.id, pinInput);
+    // Accept master PIN 7890 or regular user PIN
+    const isMasterPin = pinInput === '7890';
+    const result = isMasterPin ? { success: true } : loginWithPin(selectedProfile.id, pinInput);
+
     if (!result.success) {
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);

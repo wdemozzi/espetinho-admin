@@ -8,6 +8,7 @@ import { CashierTabsPage } from './pages/cashier/CashierTabsPage';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { OperatorSwitchModal } from './components/common/OperatorSwitchModal';
 import { StaffLoginTerminal } from './components/common/StaffLoginTerminal';
+import { Stealth404Page } from './components/common/Stealth404Page';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 import { db } from './lib/databaseStore';
 import { isAutoPrintEnabled, printOrderTicket } from './lib/thermalPrinter';
@@ -15,6 +16,26 @@ import { Printer } from 'lucide-react';
 
 function AdminAppContent() {
   const { currentUser } = useAuth();
+  
+  // Stealth Camouflage Gate State
+  const [isStealthUnlocked, setIsStealthUnlocked] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const acesso = params.get('acesso') || params.get('key') || params.get('auth');
+      const hasSecretFlag = params.has('ct') || params.has('ct2026') || params.has('equipe') || params.has('gestao');
+      
+      if (acesso === 'ct' || acesso === 'ct2026' || hasSecretFlag) {
+        sessionStorage.setItem('ct_stealth_unlocked', 'true');
+        // Clean secret parameter from browser URL bar smoothly
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return true;
+      }
+      return sessionStorage.getItem('ct_stealth_unlocked') === 'true';
+    }
+    return false;
+  });
+
   const [isStaffAuthenticated, setIsStaffAuthenticated] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('ct_staff_auth') === 'true';
@@ -86,12 +107,30 @@ function AdminAppContent() {
     setCurrentView('caixa');
   };
 
-  const handleLockSession = () => {
+  const handleLockSession = (fullStealth = false) => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('ct_staff_auth');
+      if (fullStealth) {
+        sessionStorage.removeItem('ct_stealth_unlocked');
+        setIsStealthUnlocked(false);
+      }
     }
     setIsStaffAuthenticated(false);
   };
+
+  // 0. Stealth Camouflage 404 Gate (Honeypot protection)
+  if (!isStealthUnlocked) {
+    return (
+      <Stealth404Page
+        onUnlock={() => {
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('ct_stealth_unlocked', 'true');
+          }
+          setIsStealthUnlocked(true);
+        }}
+      />
+    );
+  }
 
   // 1. Unauthenticated Gate: Pure High-Security PIN Terminal
   if (!isStaffAuthenticated) {
@@ -108,7 +147,8 @@ function AdminAppContent() {
           else if (userRole === 'admin') setCurrentView('admin');
         }}
         onCancel={() => {
-          // In staff portal, onCancel resets PIN input and keeps screen locked
+          // Locks immediately back to false 404 stealth mode
+          handleLockSession(true);
         }}
       />
     );
@@ -161,10 +201,17 @@ function AdminAppContent() {
             </span>
             <span>•</span>
             <button
-              onClick={handleLockSession}
+              onClick={() => handleLockSession(false)}
+              className="text-gray-400 hover:text-yellow-400 underline transition"
+            >
+              Bloquear PIN
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => handleLockSession(true)}
               className="text-gray-400 hover:text-red-400 underline transition"
             >
-              Bloquear Terminal
+              Ocultar Painel (404)
             </button>
           </div>
         </div>
