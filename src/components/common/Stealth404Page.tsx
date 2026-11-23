@@ -2,13 +2,29 @@ import React, { useState, useEffect } from 'react';
 
 interface Stealth404PageProps {
   onUnlock: () => void;
-  secretPassphrase?: string;
 }
 
-export const Stealth404Page: React.FC<Stealth404PageProps> = ({
-  onUnlock,
-  secretPassphrase = 'ct',
-}) => {
+// SHA-256 Hashes of accepted keys:
+// 'ct2026' -> 3ad278d67ce74857cf2bbd7d9cf78e38ebb2fd1e4f07f90eddfed8cf9f90a4b1
+// 'ct'     -> f8dcb34308e5c69f46a33cafa62bd922476b18c78a114eb144e34a5e374f7d60
+// '7890'   -> 6a95bbab63d587b596398c4bd7e91a132f24032d2007d107e5ea71967724b092
+// '9999'   -> 888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05
+const VALID_HASHES = [
+  '3ad278d67ce74857cf2bbd7d9cf78e38ebb2fd1e4f07f90eddfed8cf9f90a4b1',
+  'f8dcb34308e5c69f46a33cafa62bd922476b18c78a114eb144e34a5e374f7d60',
+  '6a95bbab63d587b596398c4bd7e91a132f24032d2007d107e5ea71967724b092',
+  '888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05',
+];
+
+async function computeSha256(str: string): Promise<string> {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+export const Stealth404Page: React.FC<Stealth404PageProps> = ({ onUnlock }) => {
   const [clickCount, setClickCount] = useState<number>(0);
   const [showSecretModal, setShowSecretModal] = useState<boolean>(false);
   const [inputKey, setInputKey] = useState<string>('');
@@ -51,22 +67,32 @@ export const Stealth404Page: React.FC<Stealth404PageProps> = ({
     };
   }, []);
 
-  const handleVerifyKey = (e?: React.FormEvent) => {
+  const handleVerifyKey = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const clean = inputKey.trim().toLowerCase();
-    // Accept valid secret passphrases
-    const validKeys = [secretPassphrase, 'ct2026', 'equipe', 'gestao', '7890', '9999'];
-    if (validKeys.includes(clean)) {
-      onUnlock();
-    } else {
+    try {
+      const computed = await computeSha256(clean);
+      if (VALID_HASHES.includes(computed)) {
+        // Set cookie so Edge Middleware authorizes future reloads
+        if (typeof document !== 'undefined') {
+          document.cookie = `ct_stealth_auth_token=3ad278d67ce74857cf2bbd7d9cf78e38ebb2fd1e4f07f90eddfed8cf9f90a4b1; Path=/; SameSite=Lax; Max-Age=2592000`;
+        }
+        onUnlock();
+      } else {
+        setError(true);
+        setTimeout(() => setError(false), 2000);
+        setInputKey('');
+      }
+    } catch {
       setError(true);
-      setTimeout(() => setError(false), 2000);
-      setInputKey('');
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-[#888] font-mono flex flex-col items-center justify-center p-4 select-none">
+    <div
+      onContextMenu={(e) => e.preventDefault()}
+      className="min-h-screen bg-black text-[#888] font-mono flex flex-col items-center justify-center p-4 select-none"
+    >
       <div className="flex items-center gap-6">
         <h1
           onClick={handle404Click}
