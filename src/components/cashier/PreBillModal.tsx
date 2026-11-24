@@ -329,7 +329,7 @@ export const PreBillModal: React.FC<PreBillModalProps> = ({ tab, establishment, 
                   />
                   <input
                     type="text"
-                    placeholder="Telefone / WhatsApp (ex: (44) 99735-7463)"
+                    placeholder="Telefone / WhatsApp (ex: (44) 99992-3965)"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     className="w-full px-2 py-1 bg-white border border-gray-300 rounded text-[10px] text-black focus:outline-none focus:border-amber-500"

@@ -171,7 +171,7 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({ isOpen, onClose 
     text += `--------------------------------\n`;
     text += `Sistema CT Conveniência 🍻`;
 
-    const cleanPhone = establishment.phone?.replace(/\D/g, '') || '44997357463';
+    const cleanPhone = establishment.phone?.replace(/\D/g, '') || '44999923965';
     const url = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
